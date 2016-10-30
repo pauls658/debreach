@@ -178,9 +178,6 @@ minigzip$(EXE): minigzip.o $(STATICLIB)
 examplesh$(EXE): example.o $(SHAREDLIBV)
 	$(CC) $(CFLAGS) -o $@ example.o -L. $(SHAREDLIBV)
 
-minidebreach$(EXE): minidebreach.o $(STATICLIB)
-	$(CC) $(CFLAGS) -o $@ minidebreach.o $(TEST_LDFLAGS)
-
 minigzipsh$(EXE): minigzip.o $(SHAREDLIBV)
 	$(CC) $(CFLAGS) -o $@ minigzip.o -L. $(SHAREDLIBV)
 

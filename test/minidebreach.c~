@@ -23,12 +23,6 @@
 #  include <stdlib.h>
 #endif
 
-#ifdef USE_MMAP
-#  include <sys/types.h>
-#  include <sys/mman.h>
-#  include <sys/stat.h>
-#endif
-
 #if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(__CYGWIN__)
 #  include <fcntl.h>
 #  include <io.h>
@@ -142,7 +136,6 @@ static void pwinerror (s)
 #  define local
 #endif
 
-#ifdef Z_SOLO
 /* for Z_SOLO, create simplified gz* functions using deflate and inflate */
 
 #if defined(Z_HAVE_UNISTD_H) || defined(Z_LARGE)
@@ -167,41 +160,41 @@ void myfree(q, p)
     free(p);
 }
 
-typedef struct gzFile_s {
+typedef struct gzFile_st {
     FILE *file;
     int write;
     int err;
     char *msg;
     z_stream strm;
-} *gzFile;
+} *gzFilet;
 
-gzFile gzopen OF((const char *, const char *));
-gzFile gzdopen OF((int, const char *));
-gzFile gz_open OF((const char *, int, const char *));
+gzFilet gzopent OF((const char *, const char *));
+gzFilet gzdopent OF((int, const char *));
+gzFilet gz_opent OF((const char *, int, const char *));
 
-gzFile gzopen(path, mode)
+gzFilet gzopent(path, mode)
 const char *path;
 const char *mode;
 {
-    return gz_open(path, -1, mode);
+    return gz_opent(path, -1, mode);
 }
 
-gzFile gzdopen(fd, mode)
+gzFilet gzdopent(fd, mode)
 int fd;
 const char *mode;
 {
-    return gz_open(NULL, fd, mode);
+    return gz_opent(NULL, fd, mode);
 }
 
-gzFile gz_open(path, fd, mode)
+gzFilet gz_opent(path, fd, mode)
     const char *path;
     int fd;
     const char *mode;
 {
-    gzFile gz;
+    gzFilet gz;
     int ret;
 
-    gz = malloc(sizeof(struct gzFile_s));
+    gz = malloc(sizeof(struct gzFile_st));
     if (gz == NULL)
         return NULL;
     gz->write = strchr(mode, 'w') != NULL;
@@ -231,34 +224,10 @@ gzFile gz_open(path, fd, mode)
     return gz;
 }
 
-int gzwrite OF((gzFile, const void *, unsigned));
+int gzreadt OF((gzFilet, void *, unsigned));
 
-int gzwrite(gz, buf, len)
-    gzFile gz;
-    const void *buf;
-    unsigned len;
-{
-    z_stream *strm;
-    unsigned char out[BUFLEN];
-
-    if (gz == NULL || !gz->write)
-        return 0;
-    strm = &(gz->strm);
-    strm->next_in = (void *)buf;
-    strm->avail_in = len;
-    do {
-        strm->next_out = out;
-        strm->avail_out = BUFLEN;
-        (void)deflate(strm, Z_NO_FLUSH);
-        fwrite(out, 1, BUFLEN - strm->avail_out, gz->file);
-    } while (strm->avail_out == 0);
-    return len;
-}
-
-int gzread OF((gzFile, void *, unsigned));
-
-int gzread(gz, buf, len)
-    gzFile gz;
+int gzreadt(gz, buf, len)
+    gzFilet gz;
     void *buf;
     unsigned len;
 {
@@ -292,57 +261,26 @@ int gzread(gz, buf, len)
     return len - strm->avail_out;
 }
 
-int gzclose OF((gzFile));
+const char *gzerrort OF((gzFilet, int *));
 
-int gzclose(gz)
-    gzFile gz;
-{
-    z_stream *strm;
-    unsigned char out[BUFLEN];
-
-    if (gz == NULL)
-        return Z_STREAM_ERROR;
-    strm = &(gz->strm);
-    if (gz->write) {
-        strm->next_in = Z_NULL;
-        strm->avail_in = 0;
-        do {
-            strm->next_out = out;
-            strm->avail_out = BUFLEN;
-            (void)deflate(strm, Z_FINISH);
-            fwrite(out, 1, BUFLEN - strm->avail_out, gz->file);
-        } while (strm->avail_out == 0);
-        deflateEnd(strm);
-    }
-    else
-        inflateEnd(strm);
-    fclose(gz->file);
-    free(gz);
-    return Z_OK;
-}
-
-const char *gzerror OF((gzFile, int *));
-
-const char *gzerror(gz, err)
-    gzFile gz;
+const char *gzerrort(gz, err)
+    gzFilet gz;
     int *err;
 {
     *err = gz->err;
     return gz->msg;
 }
 
-#endif
 
 char *prog;
 
 void error            OF((const char *msg));
-void gz_compress      OF((FILE   *in, gzFile out));
-#ifdef USE_MMAP
-int  gz_compress_mmap OF((FILE   *in, gzFile out));
-#endif
-void gz_uncompress    OF((gzFile in, FILE   *out));
-void file_compress    OF((char  *file, char *mode));
+void gz_compress      OF((FILE   *in, gzFilet out, char **unsafe));
+void gz_uncompress    OF((gzFilet in, FILE   *out));
+void file_compress    OF((char  *file, char *mode, char **unsafe));
 void file_uncompress  OF((char  *file));
+int gzwritet OF((gzFilet, const void *, unsigned, char **));
+int gzcloset OF((gzFilet, char **));
 int  main             OF((int argc, char *argv[]));
 
 void printIntArray(arr, out) 
@@ -370,24 +308,135 @@ void error(msg)
     exit(1);
 }
 
+unsigned int* get_byte_ranges(const char *buf, unsigned int buf_len, char **unsafe) {
+	if (unsafe == NULL) {
+		fprintf(stdout, "unsafe was null. wat\n");
+		return NULL;
+	}
+	int array_size = 20;
+	unsigned int* brs = (unsigned int*) malloc(sizeof(unsigned int)*array_size);
+	// TODO: alloc error handling
+	brs[0] = 0;
+	brs[1] = 0;
+	unsigned int buf_i, br_i = 0;
+	char **temp;
+	for (buf_i = 0; buf_i < buf_len; buf_i++) {
+		// check if any of the unsafe strings appear at buf_i
+		for (temp = unsafe; *temp != NULL; temp++) {
+			char *unsafe_str = *temp;
+			unsigned int end_i = 0;
+			short match = 1;
+			while (unsafe_str[end_i] != '\0' && buf_i + end_i < buf_len) {
+				if (unsafe_str[end_i] != buf[buf_i + end_i]) {
+					match = 0;
+					break;
+				}
+				end_i++;
+			}
+			if (match == 1) {
+				// Either we reached the end of an unsafe string, or we reached the end of the
+				// buffer. In both cases, add the byte range
+				// First check if buf_i is still in the last byte range
+				if (buf_i <= brs[br_i + 1]) {
+					if (buf_i + end_i > brs[br_i + 1]) {
+						// buf_i hasn't moved out of the last byte range yet, and the new br extends
+						// out of the old one
+						// don't make a new byte range, just extend the last one
+						brs[br_i + 1] = buf_i + end_i; 
+					}
+				} else {
+					// Make a new byte range
+					// realloc if we have to
+					// br_i + 4 is the size of what we need
+					// - 2 from array_size because we need 2 spaces for terminator
+					if (br_i + 4 > array_size - 2) {
+						array_size = 2*array_size;
+						brs = (unsigned int*) realloc(brs, array_size);
+					}
+					// TODO: alloc error handling
+					brs[br_i] = buf_i;
+					brs[br_i + 1] = buf_i + end_i;
+					br_i += 2;
+				}
+			}
+		}
+	}
+	br_i += 2;
+	brs[br_i] = 0;
+	brs[br_i + 1] = 0;
+	return brs;
+}
+
+int gzwritet(gz, buf, len, unsafe)
+    gzFilet gz;
+    const void *buf;
+    unsigned len;
+	char **unsafe;
+{
+    z_stream *strm;
+    unsigned char out[BUFLEN];
+	unsigned int *brs = get_byte_ranges((char*)buf, len, unsafe);
+#ifdef BRS_ONLY
+	fprintf(stdout, "byteranges: ");
+	printIntArray(brs, stdout);
+	fprintf(stdout, "%s\n", (char*)buf);
+	return len;
+#endif
+    if (gz == NULL || !gz->write)
+        return 0;
+    strm = &(gz->strm);
+    strm->next_in = (void *)buf;
+    strm->avail_in = len;
+    do {
+        strm->next_out = out;
+        strm->avail_out = BUFLEN;
+        (void)deflate(strm, Z_NO_FLUSH);
+        fwrite(out, 1, BUFLEN - strm->avail_out, gz->file);
+    } while (strm->avail_out == 0);
+    return len;
+}
+
+int gzcloset(gz, unsafe)
+    gzFilet gz;
+	char **unsafe;
+{
+    z_stream *strm;
+    unsigned char out[BUFLEN];
+
+    if (gz == NULL)
+        return Z_STREAM_ERROR;
+    strm = &(gz->strm);
+    if (gz->write) {
+        strm->next_in = Z_NULL;
+        strm->avail_in = 0;
+        do {
+            strm->next_out = out;
+            strm->avail_out = BUFLEN;
+            (void)deflate(strm, Z_FINISH);
+            fwrite(out, 1, BUFLEN - strm->avail_out, gz->file);
+        } while (strm->avail_out == 0);
+        deflateEnd(strm);
+    }
+    else
+        inflateEnd(strm);
+    fclose(gz->file);
+    free(gz);
+    return Z_OK;
+}
+
 /* ===========================================================================
  * Compress input to output then close both files.
  */
 
-void gz_compress(in, out)
+void gz_compress(in, out, unsafe)
     FILE   *in;
-    gzFile out;
+    gzFilet out;
+	char **unsafe;
 {
     local char buf[BUFLEN];
     int len;
     int err;
 
-#ifdef USE_MMAP
-    /* Try first compressing with mmap. If mmap fails (minigzip used in a
-     * pipe), use the normal fread loop.
-     */
-    if (gz_compress_mmap(in, out) == Z_OK) return;
-#endif
     for (;;) {
         len = (int)fread(buf, 1, sizeof(buf), in);
         if (ferror(in)) {
@@ -396,54 +445,18 @@ void gz_compress(in, out)
         }
         if (len == 0) break;
 
-        if (gzwrite(out, buf, (unsigned)len) != len) error(gzerror(out, &err));
+        if (gzwritet(out, buf, (unsigned)len, unsafe) != len) error(gzerrort(out, &err));
     }
     fclose(in);
-    if (gzclose(out) != Z_OK) error("failed gzclose");
+    if (gzcloset(out, unsafe) != Z_OK) error("failed gzclose");
 }
 
-#ifdef USE_MMAP /* MMAP version, Miguel Albrecht <malbrech@eso.org> */
-
-/* Try compressing the input file at once using mmap. Return Z_OK if
- * if success, Z_ERRNO otherwise.
- */
-int gz_compress_mmap(in, out)
-    FILE   *in;
-    gzFile out;
-{
-    int len;
-    int err;
-    int ifd = fileno(in);
-    caddr_t buf;    /* mmap'ed buffer for the entire input file */
-    off_t buf_len;  /* length of the input file */
-    struct stat sb;
-
-    /* Determine the size of the file, needed for mmap: */
-    if (fstat(ifd, &sb) < 0) return Z_ERRNO;
-    buf_len = sb.st_size;
-    if (buf_len <= 0) return Z_ERRNO;
-
-    /* Now do the actual mmap: */
-    buf = mmap((caddr_t) 0, buf_len, PROT_READ, MAP_SHARED, ifd, (off_t)0);
-    if (buf == (caddr_t)(-1)) return Z_ERRNO;
-
-    /* Compress the whole file at once: */
-    len = gzwrite(out, (char *)buf, (unsigned)buf_len);
-
-    if (len != (int)buf_len) error(gzerror(out, &err));
-
-    munmap(buf, buf_len);
-    fclose(in);
-    if (gzclose(out) != Z_OK) error("failed gzclose");
-    return Z_OK;
-}
-#endif /* USE_MMAP */
 
 /* ===========================================================================
  * Uncompress input to output then close both files.
  */
 void gz_uncompress(in, out)
-    gzFile in;
+    gzFilet in;
     FILE   *out;
 {
     local char buf[BUFLEN];
@@ -451,8 +464,8 @@ void gz_uncompress(in, out)
     int err;
 
     for (;;) {
-        len = gzread(in, buf, sizeof(buf));
-        if (len < 0) error (gzerror(in, &err));
+        len = gzreadt(in, buf, sizeof(buf));
+        if (len < 0) error (gzerrort(in, &err));
         if (len == 0) break;
 
         if ((int)fwrite(buf, 1, (unsigned)len, out) != len) {
@@ -461,7 +474,9 @@ void gz_uncompress(in, out)
     }
     if (fclose(out)) error("failed fclose");
 
-    if (gzclose(in) != Z_OK) error("failed gzclose");
+	// Don't need debreach for uncompress
+	// use regular zlib
+    if (gzcloset(in, NULL) != Z_OK) error("failed gzclose");
 }
 
 
@@ -469,13 +484,14 @@ void gz_uncompress(in, out)
  * Compress the given file: create a corresponding .gz file and remove the
  * original.
  */
-void file_compress(file, mode)
+void file_compress(file, mode, unsafe)
     char  *file;
     char  *mode;
+	char **unsafe;
 {
     local char outfile[MAX_NAME_LEN];
     FILE  *in;
-    gzFile out;
+    gzFilet out;
 
     if (strlen(file) + strlen(GZ_SUFFIX) >= sizeof(outfile)) {
         fprintf(stderr, "%s: filename too long\n", prog);
@@ -494,12 +510,12 @@ void file_compress(file, mode)
         perror(file);
         exit(1);
     }
-    out = gzopen(outfile, mode);
+    out = gzopent(outfile, mode);
     if (out == NULL) {
-        fprintf(stderr, "%s: can't gzopen %s\n", prog, outfile);
+        fprintf(stderr, "%s: can't gzopent %s\n", prog, outfile);
         exit(1);
     }
-    gz_compress(in, out);
+    gz_compress(in, out, unsafe);
 
 }
 
@@ -513,7 +529,7 @@ void file_uncompress(file)
     local char buf[MAX_NAME_LEN];
     char *infile, *outfile;
     FILE  *out;
-    gzFile in;
+    gzFilet in;
     size_t len = strlen(file);
 
     if (len + strlen(GZ_SUFFIX) >= sizeof(buf)) {
@@ -540,9 +556,9 @@ void file_uncompress(file)
         strcat(infile, GZ_SUFFIX);
 #endif
     }
-    in = gzopen(infile, "rb");
+    in = gzopent(infile, "rb");
     if (in == NULL) {
-        fprintf(stderr, "%s: can't gzopen %s\n", prog, infile);
+        fprintf(stderr, "%s: can't gzopent %s\n", prog, infile);
         exit(1);
     }
     out = fopen(outfile, "wb");
@@ -608,7 +624,7 @@ int main(argc, argv)
 {
     int copyout = 0;
     int uncompr = 0;
-    gzFile file;
+    gzFilet file;
     char *bname, outmode[20];
 	char **unsafe = NULL;
 	unsigned int *taint = NULL;
@@ -645,7 +661,9 @@ int main(argc, argv)
 		} else if (c == 's') {
 			// get the number of strings we need to allocate
 			int n = charCount(optarg, ',') + 1;
+#ifdef ARGS_DEBUG
 			fprintf(stderr, "num strings: %d\n", n);
+#endif
 			// + 1 for null term
 			unsafe = (char **) malloc(sizeof(char *)*(n + 1));
 			char *comma, **temp = unsafe;
@@ -740,52 +758,53 @@ int main(argc, argv)
 		}
 	}
 #endif
-	exit(1);
-    if (argc == 0) {
-        SET_BINARY_MODE(stdin);
+
+	// Not handling byte ranges yet
+	if (taint != NULL) {
+		printf("Error: -b not yet implemented\n");
+		exit(1);
+	}
+
+	if (taint != NULL && unsafe != NULL) {
+		printf("Error: -b and -s cannot be used together\n");
+		exit(1);
+	}
+
+    if (access(argv[argc - 1], R_OK) != 0) {
+		printf("Error: could not open %s for reading.\n", argv[argc - 1]);
+		exit(1);
+    }
+
+    if (copyout) {
         SET_BINARY_MODE(stdout);
-        if (uncompr) {
-            file = gzdopen(fileno(stdin), "rb");
-            if (file == NULL) error("can't gzdopen stdin");
-            gz_uncompress(file, stdout);
+    }
+
+    if (uncompr) {
+        if (copyout) {
+            file = gzopent(argv[argc - 1], "rb");
+            if (file == NULL)
+                fprintf(stderr, "%s: can't gzopent %s\n", prog, argv[argc - 1]);
+            else
+                gz_uncompress(file, stdout);
         } else {
-            file = gzdopen(fileno(stdout), outmode);
-            if (file == NULL) error("can't gzdopen stdout");
-            gz_compress(stdin, file);
+            file_uncompress(argv[argc - 1]);
         }
     } else {
         if (copyout) {
-            SET_BINARY_MODE(stdout);
-        }
-        do {
-            if (uncompr) {
-                if (copyout) {
-                    file = gzopen(*argv, "rb");
-                    if (file == NULL)
-                        fprintf(stderr, "%s: can't gzopen %s\n", prog, *argv);
-                    else
-                        gz_uncompress(file, stdout);
-                } else {
-                    file_uncompress(*argv);
-                }
+            FILE * in = fopen(argv[argc - 1], "rb");
+
+            if (in == NULL) {
+                perror(argv[argc - 1]);
             } else {
-                if (copyout) {
-                    FILE * in = fopen(*argv, "rb");
+                file = gzdopent(fileno(stdout), outmode);
+                if (file == NULL) error("can't gzdopen stdout");
 
-                    if (in == NULL) {
-                        perror(*argv);
-                    } else {
-                        file = gzdopen(fileno(stdout), outmode);
-                        if (file == NULL) error("can't gzdopen stdout");
-
-                        gz_compress(in, file);
-                    }
-
-                } else {
-                    file_compress(*argv, outmode);
-                }
+                gz_compress(in, file, unsafe);
             }
-        } while (argv++, --argc);
+
+        } else {
+            file_compress(argv[argc - 1], outmode, unsafe);
+        }
     }
     return 0;
 }

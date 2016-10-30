@@ -43,6 +43,7 @@ def validate_brs(br_file, tokens):
     with open(br_file, 'rb') as f_ref:
         line = f_ref.readline()
         while True:
+            print line
             if not line:
                 break
             if br_RE.search(line):

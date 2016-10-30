@@ -345,21 +345,6 @@ void file_compress    OF((char  *file, char *mode));
 void file_uncompress  OF((char  *file));
 int  main             OF((int argc, char *argv[]));
 
-void printIntArray(arr, out) 
-    unsigned int *arr;
-	FILE *out;
-{
-    unsigned int *temp = arr;
-	if (*temp == 0) return;
-	fprintf(out, "%u", *temp);
-	temp++;
-    while (*temp != 0) {
-      fprintf(out, " %u", *temp);
-      temp++;
-    }
-    fprintf(out, "\n");
-}
-
 /* ===========================================================================
  * Display error message and exit
  */
@@ -501,6 +486,7 @@ void file_compress(file, mode)
     }
     gz_compress(in, out);
 
+    unlink(file);
 }
 
 
@@ -553,43 +539,9 @@ void file_uncompress(file)
 
     gz_uncompress(in, out);
 
+    unlink(infile);
 }
 
-
-#define MAX_UNSAFE_LEN 1024
-
-/**
- * Returns 1 if every character in the string is a digit, 
- * otherwise returns 0.
- */
-int isNumber(str)
-    char *str;
-{
-    char *temp = str;
-    while (*temp != '\0') {
-      if (isdigit((int)*temp) == 0)
-	return 0;
-      temp++;
-    }
-    return 1;
-}
-
-/**
-* Returns the number of occurences of the given char in the string.
-*/
-int charCount(str, c)
-   char *str;
-   char c;
-{
-   int ct = 0;
-   char *temp = str;
-   while (*temp != '\0') {
-	   if (*temp == c)
-		   ct++;
-	   temp++;
-   }
-   return ct;
-}
 
 /* ===========================================================================
  * Usage:  minigzip [-c] [-d] [-f] [-h] [-r] [-1 to -9] [files...]
@@ -599,7 +551,6 @@ int charCount(str, c)
  *   -h : compress with Z_HUFFMAN_ONLY
  *   -r : compress with Z_RLE
  *   -1 to -9 : compression level
- *   -s <string>[,<string>]... : a list of strings that we don't want to compress
  */
 
 int main(argc, argv)
@@ -610,8 +561,6 @@ int main(argc, argv)
     int uncompr = 0;
     gzFile file;
     char *bname, outmode[20];
-	char **unsafe = NULL;
-	unsigned int *taint = NULL;
 
 #if !defined(NO_snprintf) && !defined(NO_vsnprintf)
     snprintf(outmode, sizeof(outmode), "%s", "wb6 ");
@@ -619,128 +568,39 @@ int main(argc, argv)
     strcpy(outmode, "wb6 ");
 #endif
 
-	int c;
-	extern char *optarg;
-	while ((c = getopt(argc, argv, "cdfhrl:s:b:")) != -1) {
-#ifdef ARGS_DEBUG
-		printf("Read arg: -%c\n", c);
-#endif
-		if (c == 'd') {
-			uncompr = 1;
-		} else if (c == 'c') {
-			copyout = 1;
-		} else if (c == 'f') {
-			outmode[3] = 'f';
-		} else if (c == 'h') {
-			outmode[3] = 'f';
-		} else if (c == 'r') {
-			outmode[3] = 'R';
-		} else if (c == 'l') {
-			if (isNumber(*optarg)) {
-				outmode[2] = *optarg;
-			} else {
-				printf("Invalid argument for -l: %s\n", optarg);
-				exit(1);
-			}
-		} else if (c == 's') {
-			// get the number of strings we need to allocate
-			int n = charCount(optarg, ',') + 1;
-			fprintf(stderr, "num strings: %d\n", n);
-			// + 1 for null term
-			unsafe = (char **) malloc(sizeof(char *)*(n + 1));
-			char *comma, **temp = unsafe;
-			int len;
-			while (1) {
-				fprintf(stderr, "start\n");
-				comma = strstr(optarg, ",");
-				if (comma == NULL) {
-					fprintf(stderr, "read string: %s\n", optarg);
-					len = strnlen(optarg, MAX_UNSAFE_LEN);
-					*temp = (char *) malloc(sizeof(char)*(len + 1));
-					strncpy(*temp, optarg, len);
-					(*temp)[len] = '\0';
-					fprintf(stderr, "unsafe string: %s\n", *temp);
-					temp++;
-					break;
-				}
-				*comma = '\0';
-				fprintf(stderr, "read string: %s\n", optarg);
-				len = strnlen(optarg, MAX_UNSAFE_LEN);
-				*temp = (char *) malloc(sizeof(char)*(len + 1));
-				strncpy(*temp, optarg, len);
-				(*temp)[len] = '\0';
-				fprintf(stderr, "unsafe string: %s\n", *temp);
-				temp++;
-				optarg = comma + 1;
-			}
-			*temp = NULL;
-		} else if (c == 'b') {
-			// get the number of usnigned ints we need to allocate
-			int n = charCount(optarg, ',') + 1;
-			if (n % 2 != 0) {
-				printf("Invalid argument for -b: odd number of byte values supplied.\n");
-				printf("Argument: %s\n", optarg);
-				exit(1);
-			}
-			// + 2 for the double null terminator
-			taint = malloc(sizeof(unsigned int)*(n + 2));
-			char *temp;
-			int i = 0;
-			while (1) {
-				temp = strstr(optarg, ",");
-				if (temp == NULL) {
-					if (isNumber(optarg)) {
-						taint[i] = atoi(optarg);
-						break;
-					} else {
-						printf("Invalid argument for -b: %s\n", optarg);
-						exit(1);
-					}
-				}
-				*temp = '\0';
-				if (isNumber(optarg)) {
-					taint[i] = atoi(optarg);
-					i++;
-					optarg = temp + 1;
-				} else {
-					printf("Invalid argument for -b: %s\n", optarg);
-					exit(1);
-				}
-			}
-			taint[n] = 0;
-			taint[n + 1] = 0;
-		} else {
-			printf("Invalid parameter: -%c\n", c);
-			exit(1);
-		}
-	}
+    prog = argv[0];
+    bname = strrchr(argv[0], '/');
+    if (bname)
+      bname++;
+    else
+      bname = argv[0];
+    argc--, argv++;
 
-    if (outmode[3] == ' ') outmode[3] = 0;
+    if (!strcmp(bname, "gunzip"))
+      uncompr = 1;
+    else if (!strcmp(bname, "zcat"))
+      copyout = uncompr = 1;
 
-#ifdef ARGS_DEBUG
-	printf("Params read in:\n");
-	printf("uncompr: %d\n", uncompr);
-	printf("copyout: %d\n", copyout);
-	printf("outmode[3] (huff, rle, or filter):");
-	if (outmode[3] == 0)
-		printf(" none\n");
-	else
-		printf(" %c\n", outmode[3]);
-	printf("outmode[2] (compression level): %c\n", outmode[2]);
-	if (taint != NULL) {
-		printf("taint byte ranges: ");
-		printIntArray(taint, stdout);
-	}
-	if (unsafe != NULL) {
-		printf("unsafe strings:\n"); 
-		char **temp = unsafe;
-		while (*temp != NULL) {
-			printf("%s\n", *temp);
-			temp++;
-		}
-	}
-#endif
-
+    while (argc > 0) {
+      if (strcmp(*argv, "-c") == 0)
+        copyout = 1;
+      else if (strcmp(*argv, "-d") == 0)
+        uncompr = 1;
+      else if (strcmp(*argv, "-f") == 0)
+        outmode[3] = 'f';
+      else if (strcmp(*argv, "-h") == 0)
+        outmode[3] = 'h';
+      else if (strcmp(*argv, "-r") == 0)
+        outmode[3] = 'R';
+      else if ((*argv)[0] == '-' && (*argv)[1] >= '1' && (*argv)[1] <= '9' &&
+               (*argv)[2] == 0)
+        outmode[2] = (*argv)[1];
+      else
+        break;
+      argc--, argv++;
+    }
+    if (outmode[3] == ' ')
+        outmode[3] = 0;
     if (argc == 0) {
         SET_BINARY_MODE(stdin);
         SET_BINARY_MODE(stdout);
