@@ -319,14 +319,16 @@ unsigned int* get_byte_ranges(const char *buf, unsigned int buf_len, char **unsa
 	int array_size = 20;
 	unsigned int* brs = (unsigned int*) malloc(sizeof(unsigned int)*array_size);
 	// TODO: alloc error handling
-	unsigned int buf_i, br_i = 0;
+	unsigned int buf_i = 0, br_i = 0;
 	char **temp;
-	for (buf_i = 0; buf_i < buf_len; buf_i++) {
+	while (buf_i < buf_len) {
 		// check if any of the unsafe strings appear at buf_i
 		for (temp = unsafe; *temp != NULL; temp++) {
 			char *unsafe_str = *temp;
 			unsigned int match_len = 0;
 			short match = 1;
+			// Check if any unsafe strings appear at buf_i. Also make sure we don't go
+			// out of the buffer
 			while (unsafe_str[match_len] != '\0' && buf_i + match_len < buf_len) {
 				if (unsafe_str[match_len] != buf[buf_i + match_len]) {
 					match = 0;
@@ -339,31 +341,23 @@ unsigned int* get_byte_ranges(const char *buf, unsigned int buf_len, char **unsa
 				//fprintf(stderr, "buf_i: %u, brs[br_i + 1]: %u\n", buf_i, brs[br_i + 1]);
 				// Either we reached the end of an unsafe string, or we reached the end of the
 				// buffer. In both cases, add the byte range
-				// First check if buf_i is still in the last byte range
-				if (buf_i - 1 <= brs[br_i - 1] && br_i > 0) {
-					//fprintf(stderr, "buf_i - 1 <= brs[br_i + 1]\n");
-					if (buf_i + match_len > brs[br_i - 1]) {
-						//fprintf(stderr, "buf_i + match_len > brs[br_i + 1]\n");
-						// buf_i hasn't moved out of the last byte range yet, and the new br extends
-						// out of the old one
-						// don't make a new byte range, just extend the last one
-						brs[br_i - 1] = buf_i + match_len - 1; 
-					}
-				} else {
-					// Make a new byte range
-					// realloc if we have to
-					// br_i + 4 is the size of what we need
-					// - 2 from array_size because we need 2 spaces for terminator
-					if (br_i + 4 > array_size - 2) {
-						array_size = 2*array_size;
-						brs = (unsigned int*) realloc(brs, array_size*sizeof(unsigned int));
-					}
-					// TODO: alloc error handling
-					brs[br_i] = buf_i;
-					brs[br_i + 1] = buf_i + match_len - 1;
-					br_i += 2;
+
+				// Make a new byte range
+				// realloc if we have to
+				// br_i + 4 is the size of what we need
+				// - 2 from array_size because we need 2 spaces for terminator
+				if (br_i + 4 > array_size - 2) {
+					array_size = 2*array_size;
+					brs = (unsigned int*) realloc(brs, array_size*sizeof(unsigned int));
 				}
-			}
+				// TODO: alloc error handling
+				brs[br_i] = buf_i;
+				brs[br_i + 1] = buf_i + match_len - 1;
+				br_i += 2;
+				buf_i += match_len;
+			} else {
+				buf_i += 1;
+			}	
 		}
 	}
 	brs[br_i] = 0;
