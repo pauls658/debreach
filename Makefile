@@ -147,7 +147,7 @@ minigzip.o: test/minigzip.c zlib.h zconf.h
 	$(CC) $(CFLAGS) -I. -c -o $@ test/minigzip.c
 
 minidebreach.o: test/minidebreach.c zlib.h zconf.h
-	$(CC) $(CFLAGS) -I. -c -o $@ test/minidebreach.c
+	$(CC) $(CFLAGS) -g -I. -c -o $@ test/minidebreach.c
 
 example64.o: test/example.c zlib.h zconf.h
 	$(CC) $(CFLAGS) -I. -D_FILE_OFFSET_BITS=64 -c -o $@ test/example.c
@@ -179,7 +179,7 @@ examplesh$(EXE): example.o $(SHAREDLIBV)
 	$(CC) $(CFLAGS) -o $@ example.o -L. $(SHAREDLIBV)
 
 minidebreach$(EXE): minidebreach.o $(STATICLIB)
-	$(CC) $(CFLAGS) -o $@ minidebreach.o $(TEST_LDFLAGS)
+	$(CC) $(CFLAGS) -g -o $@ minidebreach.o $(TEST_LDFLAGS)
 
 minigzipsh$(EXE): minigzip.o $(SHAREDLIBV)
 	$(CC) $(CFLAGS) -o $@ minigzip.o -L. $(SHAREDLIBV)

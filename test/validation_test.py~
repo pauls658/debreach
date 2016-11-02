@@ -43,7 +43,6 @@ def validate_brs(br_file, tokens):
     with open(br_file, 'rb') as f_ref:
         line = f_ref.readline()
         while True:
-            print line
             if not line:
                 break
             if br_RE.search(line):
@@ -65,6 +64,8 @@ def validate_brs(br_file, tokens):
                 for i in xrange(0, len(brs), 2):
                     print buf[brs[i]:brs[i+1]]
             line = f_ref.readline()
+    # Always True for now, until we implement some type of actual
+    # validtion test
     return True
 
 def clear_dirs():
@@ -87,13 +88,14 @@ def brs_only():
         if not token:
             print "Error: no token found"
             exit(1)
-        print "Token found: " + token
-
-        os.system('../minidebreach -s ' + token + ' ' + INPUT_DIR + '/' + in_file + ' 1> brs/' + in_file)
+        tokens = [token[:15], token[8:]]
+        print "Tokens found: " + ','.join(tokens)
+        print '../minidebreach -s ' + ','.join(tokens) + ' ' + INPUT_DIR + '/' + in_file + ' 1> brs/' + in_file
+        os.system('../minidebreach -s ' + ','.join(tokens) + ' ' + INPUT_DIR + '/' + in_file + ' 1> brs/' + in_file)
         os.system('mv ' + INPUT_DIR + '/' + in_file + '.gz output')
 
         # validate the brs
-        if not validate_brs('brs/' + in_file, [token]):
+        if not validate_brs('brs/' + in_file, tokens):
             print "Error: bad tainted region"
 
 def full_test():
