@@ -123,6 +123,10 @@ typedef struct internal_state {
      * To do: use the user input buffer as sliding window.
      */
 
+#ifdef DEBREACH
+	Posf *next_taint;
+#endif
+
     ulg window_size;
     /* Actual size of window: 2*wSize, except when the user input buffer
      * is directly used as sliding window.

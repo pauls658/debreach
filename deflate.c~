@@ -1710,6 +1710,10 @@ local void check_match(s, start, match, length)
 #  define check_match(s, start, match, length)
 #endif /* DEBUG */
 
+#ifdef DEBREACH
+local void shift_next_taint(s, 
+#endif
+
 /* ===========================================================================
  * Fill the window when the lookahead becomes insufficient.
  * Updates strstart and lookahead.

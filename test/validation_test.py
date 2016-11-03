@@ -73,6 +73,7 @@ def clear_dirs():
     os.system('rm output_lits/*')
     os.system('rm debug/*')
     os.system('rm brs/*')
+    os.system('rm input/*.gz')
 
 def brs_only():
     clear_dirs()
@@ -88,7 +89,7 @@ def brs_only():
         if not token:
             print "Error: no token found"
             exit(1)
-        tokens = [token[:15], token[8:]]
+        tokens = [token]
         print "Tokens found: " + ','.join(tokens)
         print '../minidebreach -s ' + ','.join(tokens) + ' ' + INPUT_DIR + '/' + in_file + ' 1> brs/' + in_file
         os.system('../minidebreach -s ' + ','.join(tokens) + ' ' + INPUT_DIR + '/' + in_file + ' 1> brs/' + in_file)
@@ -113,13 +114,13 @@ def full_test():
             print "Error: no token found"
             exit(1)
         print "Token found: " + token
-
+        tokens = [token]
         byte_ranges = find_byte_ranges(INPUT_DIR + '/' + in_file, token)
         num_tokens = len(byte_ranges) / 2
-
+        print "Num tokens: " + str(num_tokens)
         # run debreach on the test file
-        print '../minidebreach -b ' + ','.join(str(n) for n in byte_ranges) + ' ' + INPUT_DIR + '/' + in_file + ' 1> output_lits/' + in_file + ' 2> debug/' + in_file
-        os.system('../minidebreach -b ' + ','.join(str(n) for n in byte_ranges) + ' ' + INPUT_DIR + '/' + in_file + ' 1> output_lits/' + in_file + ' 2> debug/' + in_file)
+        print '../minidebreach -s ' + ','.join(tokens) + ' ' + INPUT_DIR + '/' + in_file + ' 1> output_lits/' + in_file + ' 2> debug/' + in_file
+        os.system('../minidebreach -s ' + ','.join(tokens) + ' ' + INPUT_DIR + '/' + in_file + ' 1> output_lits/' + in_file + ' 2> debug/' + in_file)
         os.system('mv ' + INPUT_DIR + '/' + in_file + '.gz output')
         # ensure that we find the token present in the literal output
         # the correct number of times

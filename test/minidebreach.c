@@ -288,7 +288,7 @@ void printIntArray(arr, out)
 	FILE *out;
 {
     unsigned int *temp = arr;
-	if (*temp == 0) {
+	if (arr == NULL || *temp == 0) {
     	fprintf(out, "\n");
 		return;
 	}
@@ -336,12 +336,12 @@ unsigned int* get_byte_ranges(const char *buf, unsigned int buf_len, char **unsa
 				}
 				match_len++;
 			}
-			if (match == 1) {
+			if (match == 1 && match_len > 0) {
 				//fprintf(stderr, "match: %s\n", unsafe_str);
 				//fprintf(stderr, "buf_i: %u, brs[br_i + 1]: %u\n", buf_i, brs[br_i + 1]);
 				// Either we reached the end of an unsafe string, or we reached the end of the
 				// buffer. In both cases, add the byte range
-
+				
 				// Make a new byte range
 				// realloc if we have to
 				// br_i + 4 is the size of what we need
@@ -354,15 +354,18 @@ unsigned int* get_byte_ranges(const char *buf, unsigned int buf_len, char **unsa
 				brs[br_i] = buf_i;
 				brs[br_i + 1] = buf_i + match_len - 1;
 				br_i += 2;
-				buf_i += match_len;
-			} else {
-				buf_i += 1;
-			}	
+				buf_i += match_len - 1;
+			}
 		}
+		buf_i += 1;
 	}
-	brs[br_i] = 0;
-	brs[br_i + 1] = 0;
-	return brs;
+	if (br_i == 0) {
+		return NULL;
+	} else {
+		brs[br_i] = 0;
+		brs[br_i + 1] = 0;
+		return brs;
+	}
 }
 
 int gzwritet(gz, buf, len, unsafe)
@@ -377,7 +380,8 @@ int gzwritet(gz, buf, len, unsafe)
 #ifdef BRS_ONLY
 	fprintf(stdout, "byteranges: ");
 	printIntArray(brs, stdout);
-	fprintf(stdout, "%s\n", (char*)buf);
+	fwrite(buf, 1, len, stdout);
+	printf("\n");
 	return len;
 #endif
     if (gz == NULL || !gz->write)
@@ -388,7 +392,11 @@ int gzwritet(gz, buf, len, unsafe)
     do {
         strm->next_out = out;
         strm->avail_out = BUFLEN;
-        (void)deflate(strm, Z_NO_FLUSH);
+		if (brs == NULL) {
+        	(void)deflate(strm, Z_NO_FLUSH);
+		} else {
+			(void)debreach(strm, Z_NO_FLUSH, brs);
+		}
         fwrite(out, 1, BUFLEN - strm->avail_out, gz->file);
     } while (strm->avail_out == 0);
     return len;

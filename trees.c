@@ -36,6 +36,10 @@
 
 #include "deflate.h"
 
+#ifdef PRINT_LITS
+#include <stdio.h>
+#endif
+
 #ifdef DEBUG
 #  include <ctype.h>
 #endif
@@ -1073,11 +1077,17 @@ local void compress_block(s, ltree, dtree)
         lc = s->l_buf[lx++];
         if (dist == 0) {
             send_code(s, lc, ltree); /* send a literal byte */
+#ifdef PRINT_LITS
+printf("%c", lc);
+#endif
             Tracecv(isgraph(lc), (stderr," '%c' ", lc));
         } else {
             /* Here, lc is the match length - MIN_MATCH */
             code = _length_code[lc];
             send_code(s, code+LITERALS+1, ltree); /* send the length code */
+#ifdef PRINT_LITS
+printf("(%d,", lc);
+#endif
             extra = extra_lbits[code];
             if (extra != 0) {
                 lc -= base_length[code];
@@ -1085,6 +1095,9 @@ local void compress_block(s, ltree, dtree)
             }
             dist--; /* dist is now the match distance - 1 */
             code = d_code(dist);
+#ifdef PRINT_LITS
+printf("%d)", dist);
+#endif
             Assert (code < D_CODES, "bad d_code");
 
             send_code(s, code, dtree);       /* send the distance code */

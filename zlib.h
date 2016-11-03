@@ -244,6 +244,11 @@ ZEXTERN int ZEXPORT deflateInit OF((z_streamp strm, int level));
 
 
 ZEXTERN int ZEXPORT deflate OF((z_streamp strm, int flush));
+
+#ifdef DEBREACH
+ZEXTERN int ZEXPORT debreach OF((z_streamp strm, int flush, unsigned int *taint));
+#endif
+
 /*
     deflate compresses as much data as possible, and stops when the input
   buffer becomes empty or the output buffer becomes full.  It may introduce
