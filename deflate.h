@@ -124,7 +124,11 @@ typedef struct internal_state {
      */
 
 #ifdef DEBREACH
-	Posf *next_taint;
+	short *next_taint;
+	/* next_taint[i] = -1 : no taint for at least the next MATCH_MATCH bytes starting from i
+	 * next_taint[i] = 0 : byte i is tainted
+	 * next_taint[i] = x > 0 : byte i + x is tainted
+	 */
 #endif
 
     ulg window_size;

@@ -101,6 +101,10 @@ typedef struct z_stream_s {
     int     data_type;  /* best guess about the data type: binary or text */
     uLong   adler;      /* adler32 value of the uncompressed data */
     uLong   reserved;   /* reserved for future use */
+
+#ifdef DEBREACH
+	int *tainted_brs;   /* tainted bytes in next_in */
+#endif
 } z_stream;
 
 typedef z_stream FAR *z_streamp;
@@ -246,7 +250,7 @@ ZEXTERN int ZEXPORT deflateInit OF((z_streamp strm, int level));
 ZEXTERN int ZEXPORT deflate OF((z_streamp strm, int flush));
 
 #ifdef DEBREACH
-ZEXTERN int ZEXPORT debreach OF((z_streamp strm, int flush, unsigned int *taint));
+ZEXTERN int ZEXPORT debreach OF((z_streamp strm, int flush));
 #endif
 
 /*

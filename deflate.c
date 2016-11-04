@@ -86,7 +86,7 @@ local block_state deflate_slow   OF((deflate_state *s, int flush));
 local block_state deflate_rle    OF((deflate_state *s, int flush));
 local block_state deflate_huff   OF((deflate_state *s, int flush));
 #ifdef DEBREACH
-local block_state deflate_debreach OF((deflate_state *s, int flush, uInt *taint));
+local block_state deflate_debreach OF((deflate_state *s, int flush));
 #endif
 local void lm_init        OF((deflate_state *s));
 local void putShortMSB    OF((deflate_state *s, uInt b));
@@ -100,7 +100,7 @@ local uInt longest_match  OF((deflate_state *s, IPos cur_match));
 #endif
 
 #ifdef DEBREACH
-local uInt longest_match_debreach  OF((deflate_state *s, IPos cur_match, uInt *taint));
+local uInt longest_match_debreach  OF((deflate_state *s, IPos cur_match));
 #endif
 
 #ifdef DEBUG
@@ -314,8 +314,8 @@ int ZEXPORT deflateInit2_(strm, level, method, windowBits, memLevel, strategy,
     s->pending_buf_size = (ulg)s->lit_bufsize * (sizeof(ush)+2L);
 
 #ifdef DEBREACH
-	// TODO: only initialize this if we need it
-    s->next_taint = (Posf *) ZALLOC(strm, s->w_size, 2*sizeof(Pos)); 
+	// TODO: initialize only once we know we need this
+    s->next_taint = (short *) ZALLOC(strm, s->w_size, 2*sizeof(short)); 
 #endif
 
     if (s->window == Z_NULL || s->prev == Z_NULL || s->head == Z_NULL ||
@@ -992,10 +992,9 @@ int ZEXPORT deflate (strm, flush)
 }
 
 #ifdef DEBREACH
-int ZEXPORT debreach(strm, flush, taint)
+int ZEXPORT debreach(strm, flush)
     z_streamp strm;
     int flush;
-    uInt *taint;
 {
     int old_flush; /* value of flush param for previous deflate call */
     deflate_state *s;
@@ -1231,7 +1230,7 @@ int ZEXPORT debreach(strm, flush, taint)
         (flush != Z_NO_FLUSH && s->status != FINISH_STATE)) {
         block_state bstate;
 
-        bstate = deflate_debreach(s, flush, taint);
+        bstate = deflate_debreach(s, flush);
 
         if (bstate == finish_started || bstate == finish_done) {
             s->status = FINISH_STATE;
@@ -2302,10 +2301,9 @@ local block_state deflate_huff(s, flush)
 
 #ifdef DEBREACH
 
-local uInt longest_match_debreach(s, cur_match, taint)
+local uInt longest_match_debreach(s, cur_match)
     deflate_state *s;
     IPos cur_match;                             /* current match */
-    uInt *taint;
 {
     unsigned chain_length = s->max_chain_length;/* max hash chain length */
     register Bytef *scan = s->window + s->strstart; /* current string */
@@ -2321,7 +2319,8 @@ local uInt longest_match_debreach(s, cur_match, taint)
     Posf *prev = s->prev;
     uInt wmask = s->w_mask;
     uInt max_match = MAX_MATCH;
-#ifdef UNALIGNED_OK
+    int *taint = s->strm->tainted_brs;
+#ifdef UNALIGNED_OK // No
     /* Compare two bytes at a time. Note: this is not always beneficial.
      * Try with and without -DUNALIGNED_OK to check.
      */
@@ -2329,7 +2328,6 @@ local uInt longest_match_debreach(s, cur_match, taint)
     register ush scan_start = *(ushf*)scan;
     register ush scan_end   = *(ushf*)(scan+best_len-1);
 #else
-#ifdef DEBREACH
     register Bytef *strend;
     if (taint[0] == 0 || (taint[0] - s->strstart) > MAX_MATCH) {
       strend = s->window + s->strstart + MAX_MATCH;
@@ -2340,9 +2338,6 @@ local uInt longest_match_debreach(s, cur_match, taint)
       fprintf(stderr, "Stopping strend at %d, max_match: %d\n", taint[0], max_match);
 #endif
     }
-#else 
-    register Bytef *strend = s->window + s->strstart + MAX_MATCH;
-#endif
     register Byte scan_end1  = scan[best_len-1];
     register Byte scan_end   = scan[best_len];
 #endif
@@ -2378,25 +2373,25 @@ local uInt longest_match_debreach(s, cur_match, taint)
         Assert(cur_match < s->strstart, "no future");
         match = s->window + cur_match;
 #ifdef BDEBUG
-	fprintf(stderr, "cur_match = %d, match = %c\n", cur_match, *match);
+		fprintf(stderr, "cur_match = %d, match = %c\n", cur_match, *match);
 #endif
+		/* NOTE: I think the first conditional here opens a vulnerablity up */
+		if ((taint[0] != 0) && s->next_taint[cur_match] != -1 &&
+	    	(scan + (s->next_taint[cur_match]) <= strend) &&
+	    	(s->window[s->next_taint[cur_match] + s->strstart] ==
+	    	*(scan + s->next_taint[cur_match]))) {
 
-	if ((taint[0] != 0) &&
-	    (scan + (s->next_taint[cur_match] - cur_match) <= strend) &&
-	    (s->window[s->next_taint[cur_match]] ==
-	    *(scan + (s->next_taint[cur_match] - cur_match)))) {
-
-	    floop = 1;
-#ifdef FLOOP
-	    fprintf(stderr, "Flooping index:%d = %c to ", cur_match, s->window[s->next_taint[cur_match]]);
+	    	floop = 1;
+#ifdef BDEBUG
+	    	fprintf(stderr, "Flooping index:%d = %c to ", cur_match, s->window[s->next_taint[cur_match] + s->strstart]);
 #endif
-	    s->window[s->next_taint[cur_match]]++;
-#ifdef FLOOP
-	    fprintf(stderr, "%c\n", s->window[s->next_taint[cur_match]]);
+	    	s->window[s->next_taint[cur_match] + s->strstart]++;
+#ifdef BDEBUG
+	    	fprintf(stderr, "%c\n", s->window[s->next_taint[cur_match] + s->strstart]);
 #endif
-	} else {
-	    floop = 0;
-	}
+		} else {
+	   		floop = 0;
+		}
         /* Skip to next match if the match length cannot increase
          * or if the match length is less than 2.  Note that the checks below
          * for insufficient lookahead only occur occasionally for performance
@@ -2441,10 +2436,19 @@ local uInt longest_match_debreach(s, cur_match, taint)
 
 #else /* UNALIGNED_OK */
 
+		/* See if we can rule out the possibility of this match being better */
         if (match[best_len]   != scan_end  ||
             match[best_len-1] != scan_end1 ||
             *match            != *scan     ||
-            *++match          != scan[1])      continue;
+            *++match          != scan[1]) {
+			if (floop == 1) {
+	    		s->window[s->next_taint[cur_match] + s->strstart]--; 
+#ifdef BDEBUG
+	    		fprintf(stderr, "Unflooping to: %c\n", s->window[s->next_taint[cur_match] + s->strstart]); 
+#endif
+			}
+			continue;
+		}
 
         /* The check at best_len-1 can be removed because it will be made
          * again later. (This heuristic is not always a win.)
@@ -2475,7 +2479,15 @@ local uInt longest_match_debreach(s, cur_match, taint)
         if (len > best_len) {
             s->match_start = cur_match;
             best_len = len;
-            if (len >= nice_match) break;
+            if (len >= nice_match) {
+				if (floop == 1) {
+	    			s->window[s->next_taint[cur_match] + s->strstart]--; 
+#ifdef BDEBUG
+	    			fprintf(stderr, "Unflooping to: %c\n", s->window[s->next_taint[cur_match] + s->strstart]); 
+#endif
+				}			
+				break;
+			}
 #ifdef UNALIGNED_OK
             scan_end = *(ushf*)(scan+best_len-1);
 #else
@@ -2483,12 +2495,12 @@ local uInt longest_match_debreach(s, cur_match, taint)
             scan_end   = scan[best_len];
 #endif
         }
-	if (floop == 1) {
-	    s->window[s->next_taint[cur_match]]--; 
-#ifdef FLOOP
-	    fprintf(stderr, "Unflooping to: %c\n", s->window[s->next_taint[cur_match]]); 
+		if (floop == 1) {
+	    	s->window[s->next_taint[cur_match] + s->strstart]--; 
+#ifdef BDEBUG
+	    	fprintf(stderr, "Unflooping to: %c\n", s->window[s->next_taint[cur_match] + s->strstart]); 
 #endif
-	}
+		}
     } while ((cur_match = prev[cur_match & wmask]) > limit
              && --chain_length != 0);
 
@@ -2499,13 +2511,13 @@ local uInt longest_match_debreach(s, cur_match, taint)
 //Debreach needs to do a few things:
 //-Advance strstart when we enter a tainted region. This ensures a match does not start in tainted data.
 //-Ensure a match does not end in a tainted region.
-local block_state deflate_debreach(s, flush, taint)
+local block_state deflate_debreach(s, flush)
     deflate_state *s;
     int flush;
-    uInt *taint;
 {
     IPos hash_head;          /* head of hash chain */
     int bflush;              /* set if current block must be flushed */
+    int *taint = s->strm->tainted_brs;
 
     int i;
     /* Process the input block. */
@@ -2609,7 +2621,9 @@ if (s->strstart >= taint[0] && s->strstart <= taint[1]) {
         hash_head = NIL;
         if (s->lookahead >= MIN_MATCH) {
             INSERT_STRING(s, s->strstart, hash_head);
- 	    	s->next_taint[s->strstart] = taint[0];
+			// Assert: strstart is not in a tainted region
+ 	    	s->next_taint[s->strstart] = (short) (taint[0] - s->strstart > MAX_MATCH) ?
+											-1 : taint[0] - s->strstart;
         }
 		/* hash_head == NIL means that there were no matches for that
 		 * string in the hash table */
@@ -2628,7 +2642,7 @@ if (s->strstart >= taint[0] && s->strstart <= taint[1]) {
              * of window index 0 (in particular we have to avoid a match
              * of the string with itself at the start of the input file).
              */
-            s->match_length = longest_match_debreach(s, hash_head, taint);
+            s->match_length = longest_match_debreach(s, hash_head);
 
             /* longest_match() sets match_start */
 
@@ -2678,7 +2692,8 @@ if (s->strstart >= taint[0] && s->strstart <= taint[1]) {
             do {
                 if (++s->strstart <= max_insert) {
                     INSERT_STRING(s, s->strstart, hash_head);
-	 	    		s->next_taint[s->strstart] = taint[0];
+	 	    		s->next_taint[s->strstart] = (taint[0] - s->strstart > MAX_MATCH) ?
+													-1 : taint[0] - s->strstart ;
                 }
             } while (--s->prev_length != 0);
             s->match_available = 0;

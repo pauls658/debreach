@@ -311,13 +311,13 @@ void error(msg)
     exit(1);
 }
 
-unsigned int* get_byte_ranges(const char *buf, unsigned int buf_len, char **unsafe) {
+int* get_byte_ranges(const char *buf, unsigned int buf_len, char **unsafe) {
 	if (unsafe == NULL) {
 		fprintf(stdout, "unsafe was null. wat\n");
 		return NULL;
 	}
 	int array_size = 20;
-	unsigned int* brs = (unsigned int*) malloc(sizeof(unsigned int)*array_size);
+	int* brs = (int*) malloc(sizeof(int)*array_size);
 	// TODO: alloc error handling
 	unsigned int buf_i = 0, br_i = 0;
 	char **temp;
@@ -376,11 +376,12 @@ int gzwritet(gz, buf, len, unsafe)
 {
     z_stream *strm;
     unsigned char out[BUFLEN];
-	unsigned int *brs = get_byte_ranges((char*)buf, len, unsafe);
+	int *brs = get_byte_ranges((char*)buf, len, unsafe);
 #ifdef BRS_ONLY
 	fprintf(stdout, "byteranges: ");
 	printIntArray(brs, stdout);
 	fwrite(buf, 1, len, stdout);
+	printf("\n");
 	return len;
 #endif
     if (gz == NULL || !gz->write)
@@ -388,13 +389,14 @@ int gzwritet(gz, buf, len, unsafe)
     strm = &(gz->strm);
     strm->next_in = (void *)buf;
     strm->avail_in = len;
+	strm->tainted_brs = brs;
     do {
         strm->next_out = out;
         strm->avail_out = BUFLEN;
 		if (brs == NULL) {
         	(void)deflate(strm, Z_NO_FLUSH);
 		} else {
-			(void)debreach(strm, Z_NO_FLUSH, brs);
+			(void)debreach(strm, Z_NO_FLUSH);
 		}
         fwrite(out, 1, BUFLEN - strm->avail_out, gz->file);
     } while (strm->avail_out == 0);
