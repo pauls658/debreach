@@ -5,4 +5,4 @@
 - Maybe only alloc next_taint when we need it
 - right now: figure out why validation fails. Probably just because window is shifted, but should confirm
 	- Change input taint array to ints, so we can have negative byte ranges
-	- update fill_window() to shift next_taint
+	- update fill_window() to shift next_taint and update byte ranges

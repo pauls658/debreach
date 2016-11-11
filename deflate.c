@@ -51,7 +51,7 @@
 
 #include "deflate.h"
 
-#ifdef BDEBUG
+#if defined(BDEBUG) || defined(DEBUG_WINDOW)
 #include <stdio.h>
 #endif
 
@@ -316,6 +316,10 @@ int ZEXPORT deflateInit2_(strm, level, method, windowBits, memLevel, strategy,
 #ifdef DEBREACH
 	// TODO: initialize only once we know we need this
     s->next_taint = (short *) ZALLOC(strm, s->w_size, 2*sizeof(short)); 
+	s->taint_cap = 20;
+	s->tainted_brs = (int *) ZALLOC(strm, s->taint_cap, sizeof(int));
+	s->tainted_brs[0] = 0;
+	s->tainted_brs[1] = 0;
 #endif
 
     if (s->window == Z_NULL || s->prev == Z_NULL || s->head == Z_NULL ||
@@ -1709,6 +1713,119 @@ local void check_match(s, start, match, length)
 #  define check_match(s, start, match, length)
 #endif /* DEBUG */
 
+#if defined(BDEBUG) || defined(DEBUG_WINDOW)
+void print_taint_array(s, out) 
+    deflate_state *s;
+	FILE *out;
+{
+    int *temp = s->tainted_brs;
+	if (temp == NULL || (temp[0] == 0 && temp[1] == 0)) {
+    	fprintf(out, "\n");
+		return;
+	}
+    fprintf(out, "{[%d-%d]", temp[0], temp[1]);
+	temp += 2;
+    while (!(temp[0] == 0 && temp[1] == 0)) {
+		if (temp == s->cur_taint) fprintf(out, "|");
+		else fprintf(out, ",");
+   		fprintf(out, "[%d-%d]", temp[0], temp[1]);
+    	temp += 2;
+    }
+    fprintf(out, "}\n");
+}
+
+void print_br_strs(deflate_state *s) {
+	int *temp = s->tainted_brs;
+	char *buf = (char*)s->window;
+	if (temp == NULL) {
+		fprintf(stderr, "\n");
+		return;
+	}
+	while (!(temp[0] == 0 && temp[1] == 0) && temp[1] <= s->strstart + s->lookahead) {
+		if (temp[0] < 0 || temp[1] < 0) continue;
+		fwrite(buf + temp[0], 1, temp[1] - temp[0], stderr);
+		fprintf(stderr, "\n");
+		temp += 2;
+	}
+}
+#endif
+
+#ifdef DEBREACH
+int ZEXPORT declare_unsafe(strm, unsafe)
+	z_streamp strm;
+	char	**unsafe;
+{
+	if (unsafe == NULL) {
+		return 0;
+	}
+	char *buf = (char *) strm->next_in;
+	unsigned int br_i = 0, buf_i = 0;
+	deflate_state *s = strm->state;
+	int *brs = s->tainted_brs;
+
+#ifdef DEBUG_UNSAFE
+	fprintf(stderr, "declare_unsafe: called\n");
+#endif
+	// advance to end of taint array
+	while (!(brs[br_i] == 0 && brs[br_i + 1] == 0)) {
+		br_i += 2;
+	}
+	
+	char **temp;
+	while (buf_i < strm->avail_in) {
+		// check if any of the unsafe strings appear at buf_i
+		for (temp = unsafe; *temp != NULL; temp++) {
+			char *unsafe_str = *temp;
+			unsigned int match_len = 0;
+			short match = 1;
+			// Check if any unsafe strings appear at buf_i. Also make sure we don't go
+			// out of the buffer
+			while (unsafe_str[match_len] != '\0' && buf_i + match_len < strm->avail_in) {
+				if (unsafe_str[match_len] != buf[buf_i + match_len]) {
+					match = 0;
+					break;
+				}
+				match_len++;
+			}
+			if (match == 1 && match_len > 0) {
+#ifdef DEBUG_UNSAFE
+				fprintf(stderr, "match: %s\n", unsafe_str);
+				fprintf(stderr, "buf_i: %u\n", buf_i);
+#endif
+				// Either we reached the end of an unsafe string, or we reached the end of the
+				// buffer. In both cases, add the byte range
+				
+				// Make a new byte range
+				// realloc if we have to
+				// br_i + 4 is the size of what we need
+				// - 2 from s->taint_cap because we need 2 spaces for terminator
+				if (br_i + 4 > s->taint_cap - 2) {
+					s->taint_cap = 2*s->taint_cap;
+					s->tainted_brs = (unsigned int*) realloc(s->tainted_brs, s->taint_cap*sizeof(unsigned int));
+					brs = s->tainted_brs;
+				}
+				// TODO: alloc error handling
+				brs[br_i] = buf_i + s->strstart + s->lookahead;
+				brs[br_i + 1] = buf_i + match_len - 1 + s->strstart + s->lookahead;
+				br_i += 2;
+				buf_i += match_len - 1;
+			}
+		}
+		buf_i += 1;
+	}
+#ifdef DEBUG_UNSAFE
+	fprintf(stderr, "declare_unsafe: new taint array: ");
+	print_taint_array(s, stderr);	
+#endif
+	if (br_i == 0) {
+		return 0;
+	} else {
+		brs[br_i] = 0;
+		brs[br_i + 1] = 0;
+		return 0;
+	}
+}
+#endif
 /* ===========================================================================
  * Fill the window when the lookahead becomes insufficient.
  * Updates strstart and lookahead.
@@ -1728,7 +1845,9 @@ local void fill_window(s)
     uInt wsize = s->w_size;
 
     Assert(s->lookahead < MIN_LOOKAHEAD, "already enough lookahead");
-
+#ifdef DEBUG_WINDOW
+	fprintf(stderr, "fill_window: called\n");
+#endif
     do {
         more = (unsigned)(s->window_size -(ulg)s->lookahead -(ulg)s->strstart);
 
@@ -1749,8 +1868,32 @@ local void fill_window(s)
          * move the upper half to the lower one to make room in the upper half.
          */
         if (s->strstart >= wsize+MAX_DIST(s)) {
+#ifdef DEBUG_WINDOW
+			fprintf(stderr, "fill_window: window almost full. moving upper half to lower half\n");
+#endif
 
             zmemcpy(s->window, s->window+wsize, (unsigned)wsize);
+#ifdef DEBREACH
+			if (s->next_taint != NULL) {
+				memcpy(s->next_taint, s->next_taint+wsize, (unsigned)wsize*sizeof(*s->next_taint));
+			}
+			if (s->tainted_brs != NULL) {
+				int *temp = s->tainted_brs;
+				while (temp[0] != 0 && temp[1] != 0) {
+					if (temp[0] < 0) {
+						// pass
+					} else if (s->strstart > temp[0]) {
+						// we passed this byte range, and can ignore it now
+						temp[0] = -1;
+						temp[1] = -1;
+					} else {
+						temp[0] -= wsize;
+						temp[1] -= wsize;
+					}
+					temp += 2;
+				}
+			}
+#endif
             s->match_start -= wsize;
             s->strstart    -= wsize; /* we now have strstart >= MAX_DIST */
             s->block_start -= (long) wsize;
@@ -1859,6 +2002,12 @@ local void fill_window(s)
         }
     }
 
+#ifdef DEBUG_WINDOW
+	fprintf(stderr, "fill_window: current taint array: ");
+	print_taint_array(s, stderr);
+	fprintf(stderr, "fill_window: tainted strs: \n");
+	print_br_strs(s);
+#endif
     Assert((ulg)s->strstart <= s->window_size - MIN_LOOKAHEAD,
            "not enough room for search");
 }
@@ -2319,7 +2468,7 @@ local uInt longest_match_debreach(s, cur_match)
     Posf *prev = s->prev;
     uInt wmask = s->w_mask;
     uInt max_match = MAX_MATCH;
-    int *taint = s->strm->tainted_brs;
+    int *taint = s->cur_taint;
 #ifdef UNALIGNED_OK // No
     /* Compare two bytes at a time. Note: this is not always beneficial.
      * Try with and without -DUNALIGNED_OK to check.
@@ -2517,8 +2666,14 @@ local block_state deflate_debreach(s, flush)
 {
     IPos hash_head;          /* head of hash chain */
     int bflush;              /* set if current block must be flushed */
-    int *taint = s->strm->tainted_brs;
 
+	// Make sure cur_taint is where it should be
+	s->cur_taint = s->tainted_brs;
+	while (!(s->cur_taint[0] == 0 && s->cur_taint[1] == 0) && 
+		   (s->cur_taint[0] < s->strstart || s->cur_taint[0] < 0)) s->cur_taint += 2;
+#ifdef DEBUG_WINDOW
+	fprintf(stderr, "cur_taint index: %ld\n", s->cur_taint - s->tainted_brs);
+#endif
     int i;
     /* Process the input block. */
     for (;;) {
@@ -2543,14 +2698,14 @@ local block_state deflate_debreach(s, flush)
 		fprintf(stderr, "\n\n");
 #endif
 
-		/** If s->strstart is in a tainted region, then advance it
-	  	* until we are no longer in taint.
+		/** If s->strstart is in a s->cur_tainted region, then advance it
+	  	* until we are no longer in s->cur_taint.
 	  	* s->strstart + MIN_MATCH because we can't find a good match
 		* between s->strstart .. s->strstart + MIN_MATCH
 		* Note: if the match at the previous step 
 	  	*/
-		if (s->strstart + MIN_MATCH - 1 >= taint[0] && s->strstart <= taint[1]) {
-	    	uInt advance = taint[1] - s->strstart + 1;
+		if (s->strstart + MIN_MATCH - 1 >= s->cur_taint[0] && s->strstart <= s->cur_taint[1]) {
+	    	uInt advance = s->cur_taint[1] - s->strstart + 1;
 		    if (advance > s->lookahead - MIN_MATCH) {
 				advance = s->lookahead - MIN_MATCH;
 	    	} 
@@ -2559,9 +2714,9 @@ local block_state deflate_debreach(s, flush)
 		    fprintf(stderr, "Advancing: %d\n", advance);
 #endif
 #ifdef WARNINGS
-if (s->strstart >= taint[0] && s->strstart <= taint[1]) {
+if (s->strstart >= s->cur_taint[0] && s->strstart <= s->cur_taint[1]) {
 	fprintf(stderr, "Warning: strstart entered was inside a tainted region. This shouldn't ever happen.\n");
-	fprintf(stderr, "strstart=%u, taint[0]=%u, taint[1]=%u\n", s->strstart, taint[0], taint[1]);
+	fprintf(stderr, "strstart=%u, s->cur_taint[0]=%u, s->cur_taint[1]=%u\n", s->strstart, s->cur_taint[0], s->cur_taint[1]);
 }
 #endif
 			if (s->match_available) {
@@ -2578,11 +2733,11 @@ if (s->strstart >= taint[0] && s->strstart <= taint[1]) {
 								   s->match_length - MIN_MATCH, bflush);
 					/**
 					 * Since the initial if conditional evaluated to true, the longest match
-					 * we can have between strstart and taint[0] is 2. This means that there 
+					 * we can have between strstart and s->cur_taint[0] is 2. This means that there 
 					 * are no strings to put in the hash table. This also means that the length
 					 * of the match in the previous step must be 3.
 					 */
-					s->strstart = taint[0];
+					s->strstart = s->cur_taint[0];
 					// match_length should always be MIN_MATCH
 				    advance -= s->match_length - 1;
 				} else {
@@ -2612,8 +2767,8 @@ if (s->strstart >= taint[0] && s->strstart <= taint[1]) {
 		    for (i = MIN_MATCH - 1; i > 0; i--) {
 	    		UPDATE_HASH(s, s->ins_h, s->window[s->strstart - i]);
 		    }
-		    taint++;
-	    	taint++;
+		    s->cur_taint++;
+	    	s->cur_taint++;
 		}
         /* Insert the string window[strstart .. strstart+2] in the
          * dictionary, and set hash_head to the head of the hash chain:
@@ -2621,9 +2776,9 @@ if (s->strstart >= taint[0] && s->strstart <= taint[1]) {
         hash_head = NIL;
         if (s->lookahead >= MIN_MATCH) {
             INSERT_STRING(s, s->strstart, hash_head);
-			// Assert: strstart is not in a tainted region
- 	    	s->next_taint[s->strstart] = (short) (taint[0] - s->strstart > MAX_MATCH) ?
-											-1 : taint[0] - s->strstart;
+			// Assert: strstart is not in a s->cur_tainted region
+ 	    	s->next_taint[s->strstart] = (short) (s->cur_taint[0] - s->strstart > MAX_MATCH) ?
+											-1 : s->cur_taint[0] - s->strstart;
         }
 		/* hash_head == NIL means that there were no matches for that
 		 * string in the hash table */
@@ -2646,15 +2801,15 @@ if (s->strstart >= taint[0] && s->strstart <= taint[1]) {
 
             /* longest_match() sets match_start */
 
-	    	/** Assertion: s->strstart is not in a tainted region
+	    	/** Assertion: s->strstart is not in a s->cur_tainted region
 		      * If our match:
-		      * - enters a tainted region in the lookahead
+		      * - enters a s->cur_tainted region in the lookahead
 	    	  * 	- We need roll back the match length until it is no
-		      *	  	  longer in the tainted region
-		      * - is matched with a string in the buffer that contains taint
-	    	  * 	- If s->match_start is in taint then the match is garbage
-	      	  * 	- If the match doesn't start in taint, but enters a tainted region
-	      	  *   	  then we must roll s->match_length back until we are no longer in a tainted region
+		      *	  	  longer in the s->cur_tainted region
+		      * - is matched with a string in the buffer that contains s->cur_taint
+	    	  * 	- If s->match_start is in s->cur_taint then the match is garbage
+	      	  * 	- If the match doesn't start in s->cur_taint, but enters a s->cur_tainted region
+	      	  *   	  then we must roll s->match_length back until we are no longer in a s->cur_tainted region
 	      	  */
 
             if (s->match_length <= 5 && (s->strategy == Z_FILTERED
@@ -2692,8 +2847,8 @@ if (s->strstart >= taint[0] && s->strstart <= taint[1]) {
             do {
                 if (++s->strstart <= max_insert) {
                     INSERT_STRING(s, s->strstart, hash_head);
-	 	    		s->next_taint[s->strstart] = (taint[0] - s->strstart > MAX_MATCH) ?
-													-1 : taint[0] - s->strstart ;
+	 	    		s->next_taint[s->strstart] = (s->cur_taint[0] - s->strstart > MAX_MATCH) ?
+													-1 : s->cur_taint[0] - s->strstart ;
                 }
             } while (--s->prev_length != 0);
             s->match_available = 0;

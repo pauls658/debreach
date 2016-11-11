@@ -376,6 +376,7 @@ int gzwritet(gz, buf, len, unsafe)
 {
     z_stream *strm;
     unsigned char out[BUFLEN];
+#if 0
 	int *brs = get_byte_ranges((char*)buf, len, unsafe);
 #ifdef BRS_ONLY
 	fprintf(stdout, "byteranges: ");
@@ -384,20 +385,17 @@ int gzwritet(gz, buf, len, unsafe)
 	printf("\n");
 	return len;
 #endif
+#endif
     if (gz == NULL || !gz->write)
         return 0;
     strm = &(gz->strm);
     strm->next_in = (void *)buf;
     strm->avail_in = len;
-	strm->tainted_brs = brs;
+	declare_unsafe(strm, unsafe);
     do {
         strm->next_out = out;
         strm->avail_out = BUFLEN;
-		if (brs == NULL) {
-        	(void)deflate(strm, Z_NO_FLUSH);
-		} else {
-			(void)debreach(strm, Z_NO_FLUSH);
-		}
+		(void)debreach(strm, Z_NO_FLUSH);
         fwrite(out, 1, BUFLEN - strm->avail_out, gz->file);
     } while (strm->avail_out == 0);
     return len;

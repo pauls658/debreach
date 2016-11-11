@@ -1,6 +1,6 @@
 #!/bin/bash
 
-EXTRA_FLAGS="-DPRINT_LITS -DBDEBUG"
+EXTRA_FLAGS="-DPRINT_LITS -DDEBUG_WINDOW -DDEBUG_UNSAFE"
 
 pushd ..
 make clean

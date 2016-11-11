@@ -36,7 +36,19 @@ def validate_security(input_file, token, num_tokens):
         found_tokens = 0
         for _ in re.finditer(token, mf):
             found_tokens += 1
-    return num_tokens == found_tokens
+        injections_found = True
+        if os.path.isfile(input_file.replace('output_lits','injections')):
+            injections = None
+            with open(input_file.replace('output_lits','injections'), 'rb') as inj_f_ref:
+                injections = inj_f_ref.read().strip().split(' ')
+            mf.seek(0)
+            for injection in injections:
+                if not re.search(injection, mf):
+                    print "Error: did not find " + injection + " in output"
+                    injections_found = False
+                    break
+
+    return num_tokens == found_tokens and injections_found
 
 br_RE = re.compile(r'^byteranges: [0-9 ]*$')
 def validate_brs(br_file, tokens):
@@ -125,7 +137,7 @@ def full_test():
         # ensure that we find the token present in the literal output
         # the correct number of times
         if not validate_security('output_lits/' + in_file, token, num_tokens):
-            print "Error: did not find correct number of tokens"
+            print "Error: security validation failed"
             exit(1)
         # validate integreity
         ret = os.system('gunzip output/' + in_file + '.gz')

@@ -129,6 +129,9 @@ typedef struct internal_state {
 	 * next_taint[i] = 0 : byte i is tainted
 	 * next_taint[i] = x > 0 : byte i + x is tainted
 	 */
+	int *tainted_brs;
+	int *cur_taint;
+	int taint_cap;
 #endif
 
     ulg window_size;
