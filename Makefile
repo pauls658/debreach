@@ -18,13 +18,13 @@
 
 CC=gcc
 
-CFLAGS=-g -O0  -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -DDEBREACH -DPRINT_LITS -DDEBUG_WINDOW -DDEBUG_UNSAFE
+CFLAGS=-g -O0  -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN 
 #CFLAGS=-O -DMAX_WBITS=14 -DMAX_MEM_LEVEL=7
 #CFLAGS=-g -DDEBUG
 #CFLAGS=-O3 -Wall -Wwrite-strings -Wpointer-arith -Wconversion \
 #           -Wstrict-prototypes -Wmissing-prototypes
 
-SFLAGS=-g -O0  -fPIC -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -DDEBREACH -DPRINT_LITS -DDEBUG_WINDOW -DDEBUG_UNSAFE
+SFLAGS=-g -O0  -fPIC -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN
 LDFLAGS= 
 TEST_LDFLAGS=-L. libz.a
 LDSHARED=gcc -shared -Wl,-soname,libz.so.1,--version-script,zlib.map
@@ -72,7 +72,7 @@ PIC_OBJS = $(PIC_OBJC) $(PIC_OBJA)
 
 all: static shared all64
 
-static: example$(EXE) minigzip$(EXE) minidebreach$(EXE)
+static: example$(EXE) minigzip$(EXE) minidebreach-stored$(EXE)
 
 shared: examplesh$(EXE) minigzipsh$(EXE)
 
@@ -149,6 +149,9 @@ minigzip.o: test/minigzip.c zlib.h zconf.h
 minidebreach.o: test/minidebreach.c zlib.h zconf.h
 	$(CC) $(CFLAGS) -g -I. -c -o $@ test/minidebreach.c
 
+minidebreach-stored.o: test/minidebreach-stored.c zlib.h zconf.h
+	$(CC) $(CFLAGS) -g -I. -c -o $@ test/minidebreach-stored.c
+
 example64.o: test/example.c zlib.h zconf.h
 	$(CC) $(CFLAGS) -I. -D_FILE_OFFSET_BITS=64 -c -o $@ test/example.c
 
@@ -180,6 +183,9 @@ examplesh$(EXE): example.o $(SHAREDLIBV)
 
 minidebreach$(EXE): minidebreach.o $(STATICLIB)
 	$(CC) $(CFLAGS) -g -o $@ minidebreach.o $(TEST_LDFLAGS)
+
+minidebreach-stored$(EXE): minidebreach-stored.o $(STATICLIB)
+	$(CC) $(CFLAGS) -g -o $@ minidebreach-stored.o $(TEST_LDFLAGS)
 
 minigzipsh$(EXE): minigzip.o $(SHAREDLIBV)
 	$(CC) $(CFLAGS) -o $@ minigzip.o -L. $(SHAREDLIBV)
