@@ -283,20 +283,18 @@ int gzwritet OF((gzFilet, const void *, unsigned, char **));
 int gzcloset OF((gzFilet, char **));
 int  main             OF((int argc, char *argv[]));
 
-/* Should be called printTaintArray because it expects the
- * double 0 terminator */
 void printIntArray(arr, out) 
     unsigned int *arr;
 	FILE *out;
 {
     unsigned int *temp = arr;
-	if (arr == NULL || (temp[0] == 0 && temp[1] == 0)) {
+	if (arr == NULL || *temp == 0) {
     	fprintf(out, "\n");
 		return;
 	}
 	fprintf(out, "%u", *temp);
 	temp++;
-    while (!(temp[0] == 0 && temp[1] == 0)) {
+    while (*temp != 0) {
       fprintf(out, " %u", *temp);
       temp++;
     }
@@ -313,11 +311,6 @@ void error(msg)
     exit(1);
 }
 
-/* Helper function */
-unsigned int u_max(unsigned int a, unsigned int b) {
-	return a > b ? a : b;
-}
-
 unsigned int* get_byte_ranges(const char *buf, unsigned int buf_len, char **unsafe) {
 	if (unsafe == NULL) {
 		fprintf(stdout, "unsafe was null. wat\n");
@@ -328,57 +321,12 @@ unsigned int* get_byte_ranges(const char *buf, unsigned int buf_len, char **unsa
 	// TODO: alloc error handling
 	unsigned int buf_i = 0, br_i = 0;
 	char **temp;
-	// Special case: buf begins with partial unsafe string
-	unsigned int match_len = 0;
-	short match;
-	char *unsafe_str;
-	unsigned unsafe_pos = 0;
-	// Find the longest match of any substring of the unsafe strings at the beginning of the
-	// buf
-	for (temp = unsafe; *temp != NULL; temp++) {
-		unsafe_str = *temp;
-		// check all substrings
-		while (*unsafe_str != '\0') {
-			match = 1;
-			unsafe_pos = 0;
-			while(unsafe_str[unsafe_pos] != '\0' && unsafe_pos < buf_len) {
-				if (unsafe_str[unsafe_pos] != buf[unsafe_pos]) {
-					match = 0;
-					break;
-				}
-				unsafe_pos++;
-			}
-			if (match) {
-				//fprintf(stderr, "match found out beginning: ");
-				//fwrite(buf, 1, unsafe_pos + 1, stderr);
-				//fprintf(stderr, "\n");
-				// unsafe_pos is at the index just after the end of the
-				// string
-				match_len = u_max(match_len, unsafe_pos);
-				// we can stop checking substrings of this string
-				// breaking here goes to the next unsafe string
-				break;
-			}
-			unsafe_str++;
-		}
-	}
-
-	// match_len is only updated if we found a match in the previous loop
-	// therefore match_len == 0 if there were no matches found
-	if (match_len > 0) {
-		brs[0] = 0;
-		brs[1] = match_len - 1;
-		//fprintf(stderr, "Making byte range: %d - %d\n", brs[0], brs[1]);
-		buf_i += match_len;
-		br_i += 2;
-	}
-
 	while (buf_i < buf_len) {
 		// check if any of the unsafe strings appear at buf_i
 		for (temp = unsafe; *temp != NULL; temp++) {
-			unsafe_str = *temp;
-			match = 1;
-			match_len = 0;
+			char *unsafe_str = *temp;
+			unsigned int match_len = 0;
+			short match = 1;
 			// Check if any unsafe strings appear at buf_i. Also make sure we don't go
 			// out of the buffer
 			while (unsafe_str[match_len] != '\0' && buf_i + match_len < buf_len) {
@@ -406,9 +354,7 @@ unsigned int* get_byte_ranges(const char *buf, unsigned int buf_len, char **unsa
 				brs[br_i] = buf_i;
 				brs[br_i + 1] = buf_i + match_len - 1;
 				br_i += 2;
-				// - 1 here becasue we always increment by 1 at the end of the main loop
 				buf_i += match_len - 1;
-				break;
 			}
 		}
 		buf_i += 1;
@@ -449,32 +395,7 @@ int gzwritet(gz, buf, len, unsafe)
 
 	// The next input byte in the buffer
 	unsigned buf_pos = 0;
-
-	// Special case: beginning of buffer is tainted
-	if (brs != NULL && brs[0] == 0 && brs[1] != 0) {
-		ret = deflateParams(strm, Z_NO_COMPRESSION, Z_DEFAULT_STRATEGY);
-		strm->avail_in = brs[1] + 1;
-		buf_pos += strm->avail_in;
-		do {
-            strm->next_out = out;
-            strm->avail_out = BUFLEN;
-    		(void)deflate(strm, Z_FULL_FLUSH);
-            fwrite(out, 1, BUFLEN - strm->avail_out, gz->file);
-    		// strm->avail_out == 0 means that there is more output to be written
-        } while (strm->avail_out == 0);
-		if (buf_pos == len) {
-			return len;
-		} else if (buf_pos > len) {
-			fprintf(stderr, "Warning: buf_pos > len doing stored block at beginning of buf. The index in the buffer should not be greater than the length of the buffer itself. Possible buffer overflow.\n");
-		}
-		brs += 2;
-	}
-
 	for (;;) {
-        strm->next_out = out;
-        strm->avail_out = BUFLEN;
-		ret = deflateParams(strm, -1, Z_DEFAULT_STRATEGY);
-        fwrite(out, 1, BUFLEN - strm->avail_out, gz->file);
 		if (brs == NULL || (brs[0] == 0 && brs[1] == 0)) {
 			// no more taint left. Finish it off
 			strm->avail_in = len - buf_pos;
@@ -482,14 +403,15 @@ int gzwritet(gz, buf, len, unsafe)
 			strm->avail_in = brs[0] - buf_pos;
 		}
 		buf_pos += strm->avail_in;
+		ret = deflateParams(strm, -1, Z_DEFAULT_STRATEGY);
+        fwrite(out, 1, BUFLEN - strm->avail_out, gz->file);
 		// next_in is updated automatically
         do {
             strm->next_out = out;
             strm->avail_out = BUFLEN;
     		(void)deflate(strm, Z_NO_FLUSH);
             fwrite(out, 1, BUFLEN - strm->avail_out, gz->file);
-    		// strm->avail_out == 0 means that our output buffer filled up, so we need to call deflate again
-			// in case there is more output
+    		// strm->avail_out == 0 means that there is more output to be written
         } while (strm->avail_out == 0);
 		// if there is no more input, we are done, and there is no need to flush
 		if (buf_pos == len) {
@@ -497,13 +419,20 @@ int gzwritet(gz, buf, len, unsafe)
 		} else if (buf_pos > len) {
 			fprintf(stderr, "Warning: buf_pos > len after doing the compressed block. The index in the buffer should not be greater than the length of the buffer itself. Possible buffer overflow\n");
 		}
+		// Force a flush so the tainted region does not use the untainted region's context
+        do {
+            strm->next_out = out;
+            strm->avail_out = BUFLEN;
+    		(void)deflate(strm, Z_FULL_FLUSH);
+            fwrite(out, 1, BUFLEN - strm->avail_out, gz->file);
+    		// strm->avail_out == 0 means that there is more output to be written
+        } while (strm->avail_out == 0);
 		// Change the compression method
         strm->next_out = out;
         strm->avail_out = BUFLEN;
 		ret = deflateParams(strm, Z_NO_COMPRESSION, Z_DEFAULT_STRATEGY);
-        fwrite(out, 1, BUFLEN - strm->avail_out, gz->file);
 		// buf_pos should == brs[0]
-		strm->avail_in = brs[1] - buf_pos + 1;
+		strm->avail_in = brs[1] - buf_pos - 1;
 		buf_pos += strm->avail_in;
 		if (ret != Z_OK) {
 			fprintf(stderr, "deflateParams() had a bad return value.\n");

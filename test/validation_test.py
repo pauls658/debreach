@@ -30,23 +30,28 @@ def find_byte_ranges(input_file, token):
     return brs 
 
 def validate_security(input_file, token, num_tokens):
-    with open(input_file, 'r') as f_ref:
+    print "Validating security of " + input_file + " with token " + token
+    with open(input_file, 'rb') as f_ref:
         mf = mmap.mmap(f_ref.fileno(), 0, prot=mmap.PROT_READ)
         mf.seek(0)
         found_tokens = 0
         for _ in re.finditer(token, mf):
             found_tokens += 1
+        print "Found " + str(found_tokens) + " tokens in compressed file"
         injections_found = True
-        if os.path.isfile(input_file.replace('output_lits','injections')):
+        injection_file = ('injections/' + input_file.split('/')[-1]).replace('.gz', '')
+        if os.path.isfile(injection_file):
             injections = None
-            with open(input_file.replace('output_lits','injections'), 'rb') as inj_f_ref:
+            with open(injection_file, 'rb') as inj_f_ref:
                 injections = inj_f_ref.read().strip().split(' ')
             mf.seek(0)
+            print "Checking injections"
             for injection in injections:
                 if not re.search(injection, mf):
                     print "Error: did not find " + injection + " in output"
                     injections_found = False
                     break
+                print "Found: " + injection
 
     return num_tokens == found_tokens and injections_found
 
@@ -86,6 +91,41 @@ def clear_dirs():
     os.system('rm debug/*')
     os.system('rm brs/*')
     os.system('rm input/*.gz')
+
+def stored_test():
+    clear_dirs()
+    for in_file in os.listdir(INPUT_DIR):
+        site_id = in_file.split('_')[0]
+        print "Processing file: " + in_file
+        if site_id not in site_REs:
+            print "Error: no regex found for site_id=" + site_id
+            exit(1)
+
+        token = find_token(INPUT_DIR + '/' + in_file, site_id)
+
+        if not token:
+            print "Error: no token found"
+            exit(1)
+
+        tokens = [token]
+        byte_ranges = find_byte_ranges(INPUT_DIR + '/' + in_file, token)
+        num_tokens = len(byte_ranges) / 2
+        print "Num tokens: " + str(num_tokens)
+        # run debreach on the test file
+        print '../minidebreach-stored -s ' + ','.join(tokens) + ' ' + INPUT_DIR + '/' + in_file + ' 1> output_lits/' + in_file + ' 2> debug/' + in_file
+        os.system('../minidebreach-stored -s ' + ','.join(tokens) + ' ' + INPUT_DIR + '/' + in_file + ' 1> output_lits/' + in_file + ' 2> debug/' + in_file)
+        os.system('mv ' + INPUT_DIR + '/' + in_file + '.gz output')
+        # ensure that we find the token present in the literal output
+        # the correct number of times
+        if not validate_security('output/' + in_file + '.gz', token, num_tokens):
+            print "Error: security validation failed"
+            exit(1)
+        # validate integreity
+        ret = os.system('gunzip output/' + in_file + '.gz')
+        if ret != 0:
+            print "Error: non-zero exit status from gunzip"
+            exit(1)
+
 
 def brs_only():
     clear_dirs()
@@ -150,9 +190,14 @@ if __name__ == '__main__':
     parser.add_option("-b", "--brs-only",
                         action="store_true", dest="brs_only", default=False,
                         help="Only very the byte ranges. Remember to compile with -DBRS_ONLY")
+    parser.add_option("-s", "--stored",
+                        action="store_true", dest="stored_test", default=False,
+                        help="Test the debreach stored module")
     (options, args) = parser.parse_args()
     if options.brs_only:
         brs_only()
+    elif options.stored_test:
+        stored_test()
     else:
         full_test()
 

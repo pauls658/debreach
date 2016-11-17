@@ -1,0 +1,3 @@
+- crafted2: a small test case. No special cases test
+- crafted3: a case with injections
+- crafted4: a case where unsafe tokens appear on the edge of a buffer
