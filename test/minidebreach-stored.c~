@@ -444,14 +444,13 @@ int gzwritet(gz, buf, len, unsafe)
 
     strm = &(gz->strm);
     strm->next_in = (void *)buf;
-    strm->next_out = out;
-    strm->avail_out = BUFLEN;
-
 	// The next input byte in the buffer
 	unsigned buf_pos = 0;
 
 	// Special case: beginning of buffer is tainted
 	if (brs != NULL && brs[0] == 0 && brs[1] != 0) {
+		strm->next_out = out;
+        strm->avail_out = BUFLEN;
 		ret = deflateParams(strm, Z_NO_COMPRESSION, Z_DEFAULT_STRATEGY);
 		strm->avail_in = brs[1] + 1;
 		buf_pos += strm->avail_in;

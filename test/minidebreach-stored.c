@@ -341,7 +341,7 @@ unsigned int* get_byte_ranges(const char *buf, unsigned int buf_len, char **unsa
 		while (*unsafe_str != '\0') {
 			match = 1;
 			unsafe_pos = 0;
-			while(unsafe_str[unsafe_pos] != '\0' && unsafe_pos < buf_len) {
+			while(unsafe_str[unsafe_pos] != '\0' && unsafe_pos < strm->avail_in) {
 				if (unsafe_str[unsafe_pos] != buf[unsafe_pos]) {
 					match = 0;
 					break;

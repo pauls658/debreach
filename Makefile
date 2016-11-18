@@ -18,13 +18,13 @@
 
 CC=gcc
 
-CFLAGS=-g -O0  -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -DPRINT_LITS
+CFLAGS=-g -O0  -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -DDEBREACH -DPRINT_LITS -DDEBUG_WINDOW -DDEBUG_UNSAFE
 #CFLAGS=-O -DMAX_WBITS=14 -DMAX_MEM_LEVEL=7
 #CFLAGS=-g -DDEBUG
 #CFLAGS=-O3 -Wall -Wwrite-strings -Wpointer-arith -Wconversion \
 #           -Wstrict-prototypes -Wmissing-prototypes
 
-SFLAGS=-g -O0  -fPIC -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -DPRINT_LITS
+SFLAGS=-g -O0  -fPIC -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -DDEBREACH -DPRINT_LITS -DDEBUG_WINDOW -DDEBUG_UNSAFE
 LDFLAGS= 
 TEST_LDFLAGS=-L. libz.a
 LDSHARED=gcc -shared -Wl,-soname,libz.so.1,--version-script,zlib.map
@@ -72,7 +72,7 @@ PIC_OBJS = $(PIC_OBJC) $(PIC_OBJA)
 
 all: static shared all64
 
-static: example$(EXE) minigzip$(EXE) minidebreach-stored$(EXE)
+static: example$(EXE) minigzip$(EXE) minidebreach$(EXE)
 
 shared: examplesh$(EXE) minigzipsh$(EXE)
 

@@ -42,7 +42,7 @@ def validate_security(input_file, token, num_tokens):
         injection_file = ('injections/' + input_file.split('/')[-1]).replace('.gz', '')
         if os.path.isfile(injection_file):
             injections = None
-            with open(injection_file), 'rb') as inj_f_ref:
+            with open(injection_file, 'rb') as inj_f_ref:
                 injections = inj_f_ref.read().strip().split(' ')
             mf.seek(0)
             print "Checking injections"
@@ -121,6 +121,7 @@ def stored_test():
             print "Error: security validation failed"
             exit(1)
         # validate integreity
+        return
         ret = os.system('gunzip output/' + in_file + '.gz')
         if ret != 0:
             print "Error: non-zero exit status from gunzip"
