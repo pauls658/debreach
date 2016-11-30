@@ -13,6 +13,9 @@ def get_headers(response_obj):
 
 def har2docs(in_file, output_dir):
     har_data = json.load(open(in_file, 'rb'))
+    #if os.path.isdir(output_dir):
+    #    os.system('rm -rf ' + output_dir + '/*')
+    #else:
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
