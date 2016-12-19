@@ -18,13 +18,13 @@
 
 CC=gcc
 
-CFLAGS=-g -O0  -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -DDEBREACH -DPRINT_LITS -DDEBUG_WINDOW -DDEBUG_UNSAFE
+CFLAGS=-g -O0  -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -DPOSTINC -DVALIDATE_SEC -DDEBREACH
 #CFLAGS=-O -DMAX_WBITS=14 -DMAX_MEM_LEVEL=7
 #CFLAGS=-g -DDEBUG
 #CFLAGS=-O3 -Wall -Wwrite-strings -Wpointer-arith -Wconversion \
 #           -Wstrict-prototypes -Wmissing-prototypes
 
-SFLAGS=-g -O0  -fPIC -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -DDEBREACH -DPRINT_LITS -DDEBUG_WINDOW -DDEBUG_UNSAFE
+SFLAGS=-g -O0  -fPIC -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -DPOSTINC -DVALIDATE_SEC -DDEBREACH
 LDFLAGS= 
 TEST_LDFLAGS=-L. libz.a
 LDSHARED=gcc -shared -Wl,-soname,libz.so.1,--version-script,zlib.map
@@ -255,7 +255,7 @@ mostlyclean: clean
 clean:
 	rm -f *.o *.lo *~ \
 	   example$(EXE) minigzip$(EXE) examplesh$(EXE) minigzipsh$(EXE) \
-	   example64$(EXE) minigzip64$(EXE) \
+	   example64$(EXE) minigzip64$(EXE) minidebreach* \
 	   infcover \
 	   libz.* foo.gz so_locations \
 	   _match.s maketree contrib/infback9/*.o

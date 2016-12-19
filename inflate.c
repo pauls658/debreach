@@ -85,6 +85,10 @@
 #include "inflate.h"
 #include "inffast.h"
 
+#ifdef VALIDATE_SEC
+#include <stdio.h>
+#endif
+
 #ifdef MAKEFIXED
 #  ifndef BUILDFIXED
 #    define BUILDFIXED
@@ -1161,6 +1165,9 @@ int flush;
             left -= copy;
             state->length -= copy;
             do {
+#ifdef VALIDATE_SEC
+				fprintf(stdout, "%c", *from);
+#endif
                 *put++ = *from++;
             } while (--copy);
             if (state->length == 0) state->mode = LEN;

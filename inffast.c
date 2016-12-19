@@ -7,6 +7,7 @@
 #include "inftrees.h"
 #include "inflate.h"
 #include "inffast.h"
+#include <stdio.h>
 
 #ifndef ASMINF
 
@@ -219,6 +220,7 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
                         if (op < len) {         /* some from window */
                             len -= op;
                             do {
+								fprintf(stderr, "%c", *from);
                                 PUP(out) = PUP(from);
                             } while (--op);
                             from = out - dist;  /* rest from output */
@@ -230,6 +232,7 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
                         if (op < len) {         /* some from end of window */
                             len -= op;
                             do {
+								fprintf(stderr, "%c", *from);
                                 PUP(out) = PUP(from);
                             } while (--op);
                             from = window - OFF;
@@ -237,6 +240,7 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
                                 op = wnext;
                                 len -= op;
                                 do {
+									fprintf(stderr, "%c", *from);
                                     PUP(out) = PUP(from);
                                 } while (--op);
                                 from = out - dist;      /* rest from output */
@@ -248,37 +252,51 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
                         if (op < len) {         /* some from window */
                             len -= op;
                             do {
+								fprintf(stderr, "%c", *from);
                                 PUP(out) = PUP(from);
                             } while (--op);
                             from = out - dist;  /* rest from output */
                         }
                     }
                     while (len > 2) {
+						fprintf(stderr, "%c", *from);
                         PUP(out) = PUP(from);
+						fprintf(stderr, "%c", *from);
                         PUP(out) = PUP(from);
+						fprintf(stderr, "%c", *from);
                         PUP(out) = PUP(from);
                         len -= 3;
                     }
                     if (len) {
+						fprintf(stderr, "%c", *from);
                         PUP(out) = PUP(from);
-                        if (len > 1)
+                        if (len > 1) {
+							fprintf(stderr, "%c", *from);
                             PUP(out) = PUP(from);
+						}
                     }
                 }
                 else {
                     from = out - dist;          /* copy direct from output */
                     do {                        /* minimum length is three */
+						fprintf(stderr, "%c", *from);
                         PUP(out) = PUP(from);
+						fprintf(stderr, "%c", *from);
                         PUP(out) = PUP(from);
+						fprintf(stderr, "%c", *from);
                         PUP(out) = PUP(from);
                         len -= 3;
                     } while (len > 2);
                     if (len) {
+						fprintf(stderr, "%c", *from);
                         PUP(out) = PUP(from);
-                        if (len > 1)
+                        if (len > 1) {
+							fprintf(stderr, "%c", *from);
                             PUP(out) = PUP(from);
+						}
                     }
                 }
+				fprintf(stderr, "\n");
             }
             else if ((op & 64) == 0) {          /* 2nd level distance code */
                 here = dcode[here.val + (hold & ((1U << op) - 1))];
