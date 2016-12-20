@@ -185,8 +185,8 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
                 bits -= op;
                 Tracevv((stderr, "inflate:         distance %u\n", dist));
 #ifdef VALIDATE_SEC
-				unsigned long here = state->botal + (out - strm->next_out);
-				unsigned long there = here - dist;
+				unsigned here = state->botal + (out - strm->next_out);
+				unsigned there = here - dist;
 				fprintf(stderr, "%lu-%lu %lu-%lu ", here, here + len - 1, there, there + len - 1);
 #endif
                 op = (unsigned)(out - beg);     /* max distance in output */

@@ -1026,7 +1026,7 @@ int flush;
             if (have >= 6 && left >= 258) {
                 RESTORE();
 #ifdef VALIDATE_SEC
-				state->botal = strm->total_out + (out - strm->avail_out);
+				state->botal = strm->total_in + (in - strm->avail_in);
 #endif
                 inflate_fast(strm, out);
                 LOAD();

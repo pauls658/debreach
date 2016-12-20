@@ -9,6 +9,54 @@ site_REs = {
         'gmail' : re.compile(r'GM_ACTION_TOKEN="(\w*)"')
 }
 
+"""
+Needs zlib to be compiled with -DVALIDATE_SEC.
+"""
+def validate_validation(in_file):
+    os.system('../minigzip ' + in_file)
+    compressed_file = in_file + '.gz'
+    br_file =  'decompbrs/' + in_file.split('/')[-1]
+    os.system('../minigzip -d ' + compressed_file + ' 2> ' + br_file)
+    with open(in_file, 'rb') as decomp_fd, open(br_file, 'rb') as br_fd:
+        dcf_buf = decomp_fd.read()
+        while True:
+            # see if we got anything left
+            br_buf = br_fd.read(1)
+            if not br_buf:
+                break
+            # read two spaces
+            first_space = True
+            while True:
+                temp = br_fd.read(1)
+                if temp == ' ' and not first_space:
+                    break
+                elif temp == ' ':
+                    first_space = False
+                br_buf += temp
+
+            br1, br2 = br_buf.split(' ', 1)
+            br1 = map(int, br1.split('-', 1))
+            br2 = map(int, br2.split('-', 1))
+            match_len = br1[1] - br1[0] + 1
+            # + 1 because we add a new line in output
+            matched_string = br_fd.read(match_len + 1)
+            # chomp the extra new line
+            matched_string = matched_string[:-1]
+
+            if matched_string != dcf_buf[br1[0]:br1[1] + 1]:
+                print "Mismatch for br1: "
+                print br1
+                print matched_string
+                print dcf_buf[br1[0]:br1[1] + 1]
+                exit(1)
+            if matched_string != dcf_buf[br2[0]:br2[1] + 1]:
+                print "Mismatch for br2:"
+                print br2
+                print matched_string
+                print dcf_buf[br2[0]:br2[1] + 1]
+                exit(1)
+        return True
+
 def find_token(input_file, site_id):
     with open(input_file, 'r') as f_ref:
         for line in f_ref:
