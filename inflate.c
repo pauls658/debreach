@@ -1165,14 +1165,22 @@ int flush;
                 copy = state->length;
             }
             if (copy > left) copy = left;
+#ifdef VALIDATE_SEC
+			unsigned long here = strm->total_out + (out - left);
+			unsigned long there = here - state->offset;
+			fprintf(stderr, "%lu-%lu %lu-%lu ", here, here + copy - 1, there, there + copy - 1);
+#endif
             left -= copy;
             state->length -= copy;
             do {
 #ifdef VALIDATE_SEC
-				fprintf(stdout, "%c", *from);
+				fprintf(stderr, "%c", *from);
 #endif
                 *put++ = *from++;
             } while (--copy);
+#ifdef VALIDATE_SEC
+			fprintf(stderr, "\n");
+#endif
             if (state->length == 0) state->mode = LEN;
             break;
         case LIT:

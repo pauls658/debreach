@@ -9,14 +9,23 @@ site_REs = {
         'gmail' : re.compile(r'GM_ACTION_TOKEN="(\w*)"')
 }
 
+def validate_validation():
+    for in_file in os.listdir(INPUT_DIR):
+        full_file = INPUT_DIR + '/' + in_file
+        print "Processing: " + full_file
+        os.system('../minigzip ' + full_file)
+        compressed_file = full_file + '.gz'
+        br_file =  'decompbrs/' + in_file
+        os.system('../minigzip -d ' + compressed_file + ' 2> ' + br_file)
+        if not check_br_records(INPUT_DIR + '/' + in_file, br_file):
+            print "Byte range check failed. Quitting."
+            exit(1)
+
+
 """
 Needs zlib to be compiled with -DVALIDATE_SEC.
 """
-def validate_validation(in_file):
-    os.system('../minigzip ' + in_file)
-    compressed_file = in_file + '.gz'
-    br_file =  'decompbrs/' + in_file.split('/')[-1]
-    os.system('../minigzip -d ' + compressed_file + ' 2> ' + br_file)
+def check_br_records(in_file, br_file):
     with open(in_file, 'rb') as decomp_fd, open(br_file, 'rb') as br_fd:
         dcf_buf = decomp_fd.read()
         while True:
@@ -46,16 +55,16 @@ def validate_validation(in_file):
             if matched_string != dcf_buf[br1[0]:br1[1] + 1]:
                 print "Mismatch for br1: "
                 print br1
-                print matched_string
-                print dcf_buf[br1[0]:br1[1] + 1]
-                exit(1)
+                print "Actual string: " + matched_string
+                print "Found: " + dcf_buf[br1[0]:br1[1] + 1]
+                return False
             if matched_string != dcf_buf[br2[0]:br2[1] + 1]:
                 print "Mismatch for br2:"
                 print br2
-                print matched_string
-                print dcf_buf[br2[0]:br2[1] + 1]
-                exit(1)
-        print "Success"
+                print "Actual string: " + matched_string
+                print "Found: " + dcf_buf[br2[0]:br2[1] + 1]
+                return False
+        return True
 
 def find_token(input_file, site_id):
     with open(input_file, 'r') as f_ref:
@@ -242,11 +251,16 @@ if __name__ == '__main__':
     parser.add_option("-s", "--stored",
                         action="store_true", dest="stored_test", default=False,
                         help="Test the debreach stored module")
+    parser.add_option("-v", "--validate-validation",
+                        action="store_true", dest="valval", default=False,
+                        help="Validate the validation module lol")
     (options, args) = parser.parse_args()
     if options.brs_only:
         brs_only()
     elif options.stored_test:
         stored_test()
+    elif options.valval:
+        validate_validation()
     else:
         full_test()
 

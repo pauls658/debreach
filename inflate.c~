@@ -1026,7 +1026,7 @@ int flush;
             if (have >= 6 && left >= 258) {
                 RESTORE();
 #ifdef VALIDATE_SEC
-				state->botal = strm->total_in + (in - strm->avail_in);
+				state->botal = strm->total_out + (out - strm->avail_out);
 #endif
                 inflate_fast(strm, out);
                 LOAD();
@@ -1164,15 +1164,23 @@ int flush;
                 from = put - state->offset;
                 copy = state->length;
             }
+#ifdef VALIDATE_SEC
+			unsigned long here = strm->total_out + (out - left);
+			unsigned long there = here - state->offset;
+			fprintf(stderr, "%lu-%lu %lu-%lu ", here, here + copy - 1, there, there + copy - 1);
+#endif
             if (copy > left) copy = left;
             left -= copy;
             state->length -= copy;
             do {
 #ifdef VALIDATE_SEC
-				fprintf(stdout, "%c", *from);
+				fprintf(stderr, "%c", *from);
 #endif
                 *put++ = *from++;
             } while (--copy);
+#ifdef VALIDATE_SEC
+			fprintf(stderr, "\n");
+#endif
             if (state->length == 0) state->mode = LEN;
             break;
         case LIT:
