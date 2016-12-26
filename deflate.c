@@ -1750,11 +1750,13 @@ void print_br_strs(deflate_state *s) {
 }
 #endif
 
+
+#ifdef DEBREACH
+
 unsigned int u_max(unsigned int a, unsigned int b) {
 	return a > b ? a : b;
 }
 
-#ifdef DEBREACH
 int ZEXPORT declare_unsafe(strm, unsafe)
 	z_streamp strm;
 	char	**unsafe;
@@ -1876,6 +1878,21 @@ int ZEXPORT declare_unsafe(strm, unsafe)
 		brs[br_i + 1] = 0;
 		return 0;
 	}
+}
+
+
+/* ===========================================================================
+ * Adds the byte ranges in brs to the tainted bytes ranges in the deflate
+ * state.
+ * - len is the the number of byte ranges in the array (that is half the
+ *   actual size of the array
+ */
+int ZEXPORT taint_brs(strm, brs, len)
+	z_streamp strm;
+	int *brs;
+	unsigned len;
+{
+	return -1;
 }
 #endif
 /* ===========================================================================

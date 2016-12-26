@@ -622,6 +622,8 @@ int charCount(str, c)
  *   -r : compress with Z_RLE
  *   -1 to -9 : compression level
  *   -s <string>[,<string>]... : a list of strings that we don't want to compress
+ *   -b <int>,<int>[,<int>,<int>]... : a list of pairs of integers. Each pair
+ *   represents a tainted byte range, so there must be an even number of ints.
  */
 
 int main(argc, argv)
@@ -634,6 +636,7 @@ int main(argc, argv)
     char *bname, outmode[20];
 	char **unsafe = NULL;
 	unsigned int *taint = NULL;
+	unsigned int taint_len = 0;
 
 #if !defined(NO_snprintf) && !defined(NO_vsnprintf)
     snprintf(outmode, sizeof(outmode), "%s", "wb6 ");
@@ -718,6 +721,7 @@ int main(argc, argv)
 			}
 			// + 2 for the double null terminator
 			taint = malloc(sizeof(unsigned int)*(n + 2));
+			taint_len = n;
 			char *temp;
 			int i = 0;
 			while (1) {

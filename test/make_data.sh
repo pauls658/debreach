@@ -29,7 +29,7 @@ for site_folder in $TEST_DATA/*; do
 	fi
 
 	echo "Processing $site_name"
-	for doc in $site_folder/$DOCS_DIR/$doc_type; do
+	for doc in $site_folder/$DOCS_DIR/$doc_type*; do
 		# t is the doc type for this doc
 		t=$(echo $doc | grep -o -E "[^/]*/[^/]*$")
 		out_file=$(printf "$OUTPUT_DIR/%s_%s" $site_name ${t/\//_})

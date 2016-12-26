@@ -33,7 +33,6 @@ for site_folder in $TEST_DATA/*; do
 		# t is the doc type for this doc
 		t=$(echo $doc | grep -o -E "[^/]*/[^/]*$")
 		out_file=$(printf "$OUTPUT_DIR/%s_%s" $site_name ${t/\//_})
-		echo $out_file
 		cp $doc $out_file
 	done
 done

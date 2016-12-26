@@ -6,7 +6,7 @@ from optparse import OptionParser
 INPUT_DIR='./input'
 
 site_REs = {
-        'gmail' : re.compile(r'GM_ACTION_TOKEN="(\w*)"')
+        'gmail' : re.compile(r'GM_ACTION_TOKEN="([^"]*)"')
 }
 
 def validate_validation():
