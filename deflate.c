@@ -1856,9 +1856,15 @@ int ZEXPORT declare_unsafe(strm, unsafe)
 				if (br_i + 4 > s->taint_cap - 2) {
 					s->taint_cap = 2*s->taint_cap;
 					s->tainted_brs = (unsigned int*) realloc(s->tainted_brs, s->taint_cap*sizeof(unsigned int));
+
+					if (s->tainted_brs == NULL) {
+						s->taint_cap = 0;
+						s->tainted_brs = NULL;
+						return -1;
+					}
 					brs = s->tainted_brs;
 				}
-				// TODO: alloc error handling
+				// TODO: better alloc error handling
 				brs[br_i] = buf_i + s->strstart + s->lookahead;
 				brs[br_i + 1] = buf_i + match_len - 1 + s->strstart + s->lookahead;
 				br_i += 2;
@@ -1880,20 +1886,50 @@ int ZEXPORT declare_unsafe(strm, unsafe)
 	}
 }
 
-
 /* ===========================================================================
  * Adds the byte ranges in brs to the tainted bytes ranges in the deflate
  * state.
- * - len is the the number of byte ranges in the array (that is half the
- *   actual size of the array
+ * - len is the the number of unsigned ints in the array including the
+ *   terminator
+ * - This should only be called after deflateInit is called
  */
 int ZEXPORT taint_brs(strm, brs, len)
 	z_streamp strm;
 	int *brs;
-	unsigned len;
+	unsigned int len;
 {
-	return -1;
+	deflate_state *state = strm->state;
+	int *temp = state->tainted_brs;
+	unsigned int cur_size = 0;
+	// TODO: can't always assumed tainted_brs is initialized yet
+	// cuz we want to optimize it
+	while(!(temp[0] == 0 &&	temp[1] == 0)) {
+		cur_size += 2;
+		temp += 2;
+	}
+
+	unsigned int needed = cur_size + len;
+	if (needed > state->taint_cap) {
+		while (state->taint_cap < needed) {
+			state->taint_cap *= 2;
+		}
+		state->tainted_brs = realloc(state->tainted_brs, state->taint_cap*sizeof(int));
+		if (state->tainted_brs == NULL) {
+			state->taint_cap = 0;
+			state->tainted_brs = NULL;
+			return -1;
+		}
+		// TODO: better alloc error handling
+	}
+
+	unsigned int i = 0;
+	for(i = 0; i < len; i++) {
+		state->tainted_brs[cur_size + i] = brs[i];
+	}
+
+	return 0;
 }
+
 #endif
 /* ===========================================================================
  * Fill the window when the lookahead becomes insufficient.

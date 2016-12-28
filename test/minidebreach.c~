@@ -278,6 +278,7 @@ void error            OF((const char *msg));
 void gz_compress      OF((FILE   *in, gzFilet out, char **unsafe));
 void gz_uncompress    OF((gzFilet in, FILE   *out));
 void file_compress    OF((char  *file, char *mode, char **unsafe));
+void file_compress_brs    OF((char  *file, char *mode, int *brs, unsigned int taint_len));
 void file_uncompress  OF((char  *file));
 int gzwritet OF((gzFilet, const void *, unsigned, char **));
 int gzcloset OF((gzFilet, char **));
@@ -392,7 +393,8 @@ int gzwritet(gz, buf, len, unsafe)
     strm->next_in = (void *)buf;
     strm->avail_in = len;
 	// declare_unsafe inits the tainted_brs
-	declare_unsafe(strm, unsafe);
+	if (unsafe != NULL)
+		declare_unsafe(strm, unsafe);
     do {
         strm->next_out = out;
         strm->avail_out = BUFLEN;
@@ -453,10 +455,10 @@ void gz_compress(in, out, unsafe)
 
         if (gzwritet(out, buf, (unsigned)len, unsafe) != len) error(gzerrort(out, &err));
     }
+	fprintf(stderr, "hi\n");
     fclose(in);
     if (gzcloset(out, unsafe) != Z_OK) error("failed gzclose");
 }
-
 
 /* ===========================================================================
  * Uncompress input to output then close both files.
@@ -525,6 +527,41 @@ void file_compress(file, mode, unsafe)
 
 }
 
+void file_compress_brs(file, mode, brs, taint_len)
+    char  *file;
+    char  *mode;
+	int   *brs;
+	unsigned int taint_len;
+{
+    local char outfile[MAX_NAME_LEN];
+    FILE  *in;
+    gzFilet out;
+
+    if (strlen(file) + strlen(GZ_SUFFIX) >= sizeof(outfile)) {
+        fprintf(stderr, "%s: filename too long\n", prog);
+        exit(1);
+    }
+
+#if !defined(NO_snprintf) && !defined(NO_vsnprintf)
+    snprintf(outfile, sizeof(outfile), "%s%s", file, GZ_SUFFIX);
+#else
+    strcpy(outfile, file);
+    strcat(outfile, GZ_SUFFIX);
+#endif
+
+    in = fopen(file, "rb");
+    if (in == NULL) {
+        perror(file);
+        exit(1);
+    }
+    out = gzopent(outfile, mode);
+    if (out == NULL) {
+        fprintf(stderr, "%s: can't gzopent %s\n", prog, outfile);
+        exit(1);
+    }
+	taint_brs(&(out->strm), brs, taint_len);
+    gz_compress(in, out, NULL);
+}
 
 /* ===========================================================================
  * Uncompress the given file and remove the original.
@@ -721,6 +758,7 @@ int main(argc, argv)
 			}
 			// + 2 for the double null terminator
 			taint = malloc(sizeof(unsigned int)*(n + 2));
+			taint_len = n + 2;
 			char *temp;
 			int i = 0;
 			while (1) {
@@ -778,12 +816,6 @@ int main(argc, argv)
 	}
 #endif
 
-	// Not handling byte ranges yet
-	if (taint != NULL) {
-		printf("Error: -b not yet implemented\n");
-		exit(1);
-	}
-
 	if (taint != NULL && unsafe != NULL) {
 		printf("Error: -b and -s cannot be used together\n");
 		exit(1);
@@ -822,7 +854,10 @@ int main(argc, argv)
             }
 
         } else {
-            file_compress(argv[argc - 1], outmode, unsafe);
+			if (taint != NULL)
+            	file_compress_brs(argv[argc - 1], outmode, taint, taint_len);
+			else
+            	file_compress(argv[argc - 1], outmode, unsafe);
         }
     }
     return 0;

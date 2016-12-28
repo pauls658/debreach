@@ -1,4 +1,4 @@
-import os
+import os, math, random
 import re
 import mmap
 from optparse import OptionParser
@@ -6,10 +6,12 @@ from optparse import OptionParser
 INPUT_DIR='./input'
 
 site_REs = {
-        'gmail' : re.compile(r'GM_ACTION_TOKEN="([^"]*)"')
+        'gmail' : re.compile(r'GM_ACTION_TOKEN="([^"]*)"'),
+        'facebook' : re.compile(r'fb_dtsg\\?" value=\\?"([^\"\\]*)\\?"')
 }
 
 def validate_validation():
+    clear_dirs()
     for in_file in os.listdir(INPUT_DIR):
         full_file = INPUT_DIR + '/' + in_file
         print "Processing: " + full_file
@@ -20,7 +22,6 @@ def validate_validation():
         if not check_br_records(INPUT_DIR + '/' + in_file, br_file):
             print "Byte range check failed. Quitting."
             exit(1)
-
 
 """
 Needs zlib to be compiled with -DVALIDATE_SEC.
@@ -67,51 +68,85 @@ def check_br_records(in_file, br_file):
                 return False
         return True
 
-def find_token(input_file, site_id):
+def read_brs(br_file):
+    brs = set()
+    with open(br_file, 'rb') as br_fd:
+        while True:
+            # see if we got anything left
+            br_buf = br_fd.read(1)
+            if not br_buf:
+                break
+            # read two spaces
+            first_space = True
+            while True:
+                temp = br_fd.read(1)
+                if temp == ' ' and not first_space:
+                    break
+                elif temp == ' ':
+                    first_space = False
+                br_buf += temp
+
+            br1, br2 = br_buf.split(' ', 1)
+            s1, e1 = map(int, br1.split('-', 1))
+            s2, e2 = map(int, br2.split('-', 1))
+            brs.add((s1, e1))
+            brs.add((s2, e2))
+            match_len = e1 - s1 + 1
+            # + 1 because we add a new line in output
+            br_fd.read(match_len + 1)
+
+    return list(brs)
+
+def validate_sec_brs(tainted_brs, match_brs_file):
+    match_brs = read_brs(match_brs_file)
+    return not overlaps(tainted_brs, match_brs)
+
+def overlaps(brs1, brs2):
+    for (s1, e1) in brs2:
+        for (s2, e2) in brs1:
+            if  min(e1, e2) >= max(s1, s2):
+                return True
+    return False
+
+def find_tokens(input_file, site_id):
+    tokens = set()
     with open(input_file, 'r') as f_ref:
         for line in f_ref:
-            match = site_REs[site_id].search(line)
-            if match:
-                return match.group(1) 
-    return None 
+            for match in site_REs[site_id].finditer(line):
+                tokens.add(match.group(1))
+    return tokens 
 
 # http://stackoverflow.com/questions/6980969/how-to-find-position-of-word-in-file
-def find_byte_ranges(input_file, token):
+def find_byte_ranges(input_file, tokens):
     brs = []
     with open(input_file, 'rb') as f_ref:
         # 0 means the whole file
         mf = mmap.mmap(f_ref.fileno(), 0, prot=mmap.PROT_READ)
         mf.seek(0)
-        for match in re.finditer(token, mf):
+        for match in re.finditer(r'|'.join(tokens), mf):
             brs.append(match.start())
             brs.append(match.end())
     return brs 
 
-def validate_security(input_file, token, num_tokens):
-    print "Validating security of " + input_file + " with token " + token
-    with open(input_file, 'rb') as f_ref:
-        mf = mmap.mmap(f_ref.fileno(), 0, prot=mmap.PROT_READ)
-        mf.seek(0)
-        found_tokens = 0
-        for _ in re.finditer(token, mf):
-            found_tokens += 1
-        print "Found " + str(found_tokens) + " tokens in compressed file"
-        injections_found = True
-        injection_file = ('injections/' + input_file.split('/')[-1]).replace('.gz', '')
-        if os.path.isfile(injection_file):
-            injections = None
-            with open(injection_file, 'rb') as inj_f_ref:
-                injections = inj_f_ref.read().strip().split(' ')
-            mf.seek(0)
-            print "Checking injections"
-            for injection in injections:
-                if not re.search(injection, mf):
-                    print "Error: did not find " + injection + " in output"
-                    injections_found = False
-                    break
-                print "Found: " + injection
+def random_brs(file_size, coverage=0.1, max_len=300, min_len=3):
+    file_size = float(file_size)
+    brs = []
+    avg_size = math.ceil(float(max_len - min_len)/float(2))
+    starts = random.sample(xrange(int(file_size)), int(math.floor((file_size*coverage)/avg_size)))
+    starts.sort()
+    brs = []
+    last_end = -1
+    for i in range(len(starts)):
+        if last_end >= starts[i]:
+            # increase the last br end
+            brs[-1] = (brs[-1][0], brs[-1][0] + random.randint(min_len, max_len + 1))
+        else:
+            brs.append((starts[i], starts[i] + random.randint(min_len, max_len + 1) - 1))
 
-    return num_tokens == found_tokens and injections_found
+    if brs[-1][1] >= file_size:
+        brs[-1] = (brs[-1][0], file_size - 1)
+
+    return brs
 
 br_RE = re.compile(r'^byteranges: [0-9 ]*$')
 def validate_brs(br_file, tokens):
@@ -149,6 +184,7 @@ def clear_dirs():
     os.system('rm debug/*')
     os.system('rm brs/*')
     os.system('rm input/*.gz')
+    os.system('rm lz77_brs/*')
 
 def stored_test():
     clear_dirs()
@@ -180,11 +216,10 @@ def stored_test():
             exit(1)
         # validate integreity
         continue
-        ret = os.system('gunzip output/' + in_file + '.gz')
+        ret = os.system('../minigzip -d output/' + in_file + '.gz 2> lz77_brs/' + in_file)
         if ret != 0:
             print "Error: non-zero exit status from gunzip"
             exit(1)
-
 
 def brs_only():
     clear_dirs()
@@ -210,7 +245,7 @@ def brs_only():
         if not validate_brs('brs/' + in_file, tokens):
             print "Error: bad tainted region"
 
-def full_test():
+def random_test():
     clear_dirs()
     for in_file in os.listdir(INPUT_DIR):
         site_id = in_file.split('_')[0]
@@ -219,29 +254,22 @@ def full_test():
             print "Error: no regex found for site_id=" + site_id
             exit(1)
 
-        token = find_token(INPUT_DIR + '/' + in_file, site_id)
-
-        if not token:
-            print "Error: no token found"
-            exit(1)
-        print "Token found: " + token
-        tokens = [token]
-        byte_ranges = find_byte_ranges(INPUT_DIR + '/' + in_file, token)
-        num_tokens = len(byte_ranges) / 2
-        print "Num tokens: " + str(num_tokens)
+        byte_ranges = random_brs(os.path.getsize(INPUT_DIR + '/' + in_file))
+        br_arg = ','.join(map(str, byte_ranges))
         # run debreach on the test file
-        print '../minidebreach -s ' + ','.join(tokens) + ' ' + INPUT_DIR + '/' + in_file + ' 1> output_lits/' + in_file + ' 2> debug/' + in_file
-        os.system('../minidebreach -s ' + ','.join(tokens) + ' ' + INPUT_DIR + '/' + in_file + ' 1> output_lits/' + in_file + ' 2> debug/' + in_file)
+        print '../minidebreach -b ' +  br_arg + ' ' + INPUT_DIR + '/' + in_file + ' 1> output_lits/' + in_file + ' 2> debug/' + in_file
+        os.system('../minidebreach -b ' + br_arg + ' ' + INPUT_DIR + '/' + in_file + ' 1> output_lits/' + in_file + ' 2> debug/' + in_file)
         os.system('mv ' + INPUT_DIR + '/' + in_file + '.gz output')
-        # ensure that we find the token present in the literal output
-        # the correct number of times
-        if not validate_security('output_lits/' + in_file, token, num_tokens):
-            print "Error: security validation failed"
-            exit(1)
+
         # validate integreity
-        ret = os.system('gunzip output/' + in_file + '.gz')
+        ret = os.system('../minigzip -d output/' + in_file + '.gz 2> lz77_brs/' + in_file)
         if ret != 0:
             print "Error: non-zero exit status from gunzip"
+            exit(1)
+
+        byte_ranges = [(byte_ranges[i], byte_ranges[i + 1]) for i in range(0, len(byte_ranges), 2)]
+        if not validate_sec_brs(byte_ranges, 'lz77_brs/' + in_file):
+            print "Error: security validation failed"
             exit(1)
 
 if __name__ == '__main__':
@@ -255,6 +283,9 @@ if __name__ == '__main__':
     parser.add_option("-v", "--validate-validation",
                         action="store_true", dest="valval", default=False,
                         help="Validate the validation module lol")
+    parser.add_option("-r", "--random-brs",
+                        action="store_true", dest="random", default=False,
+                        help="Do validation with random byte ranges")
     (options, args) = parser.parse_args()
     if options.brs_only:
         brs_only()
@@ -262,6 +293,6 @@ if __name__ == '__main__':
         stored_test()
     elif options.valval:
         validate_validation()
-    else:
-        full_test()
+    elif options.random:
+        random_test()
 
