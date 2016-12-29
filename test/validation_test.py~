@@ -255,10 +255,10 @@ def random_test():
             exit(1)
 
         byte_ranges = random_brs(os.path.getsize(INPUT_DIR + '/' + in_file))
-        br_arg = ','.join(map(str, byte_ranges))
+        br_arg = ','.join(str(s) + ',' + str(e) for (s, e) in byte_ranges)
         # run debreach on the test file
-        print '../minidebreach -b ' +  br_arg + ' ' + INPUT_DIR + '/' + in_file + ' 1> output_lits/' + in_file + ' 2> debug/' + in_file
-        os.system('../minidebreach -b ' + br_arg + ' ' + INPUT_DIR + '/' + in_file + ' 1> output_lits/' + in_file + ' 2> debug/' + in_file)
+        print '../minidebreach -b ' +  br_arg + ' ' + INPUT_DIR + '/' + in_file + ' 2> debug/' + in_file
+        os.system('../minidebreach -b ' + br_arg + ' ' + INPUT_DIR + '/' + in_file + ' 2> debug/' + in_file)
         os.system('mv ' + INPUT_DIR + '/' + in_file + '.gz output')
 
         # validate integreity
@@ -271,6 +271,8 @@ def random_test():
         if not validate_sec_brs(byte_ranges, 'lz77_brs/' + in_file):
             print "Error: security validation failed"
             exit(1)
+
+        clear_dirs()
 
 if __name__ == '__main__':
     parser = OptionParser()

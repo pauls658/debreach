@@ -671,7 +671,7 @@ int main(argc, argv)
     gzFilet file;
     char *bname, outmode[20];
 	char **unsafe = NULL;
-	unsigned int *taint = NULL;
+	int *taint = NULL;
 	unsigned int taint_len = 0;
 
 #if !defined(NO_snprintf) && !defined(NO_vsnprintf)
@@ -756,7 +756,7 @@ int main(argc, argv)
 				exit(1);
 			}
 			// + 2 for the double null terminator
-			taint = malloc(sizeof(unsigned int)*(n + 2));
+			taint = (int *) malloc(sizeof(int)*(n + 2));
 			taint_len = n + 2;
 			char *temp;
 			int i = 0;

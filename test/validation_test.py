@@ -179,12 +179,12 @@ def validate_brs(br_file, tokens):
     return True
 
 def clear_dirs():
-    os.system('rm output/*')
-    os.system('rm output_lits/*')
-    os.system('rm debug/*')
-    os.system('rm brs/*')
-    os.system('rm input/*.gz')
-    os.system('rm lz77_brs/*')
+    os.system('rm output/* &> /dev/null')
+    os.system('rm output_lits/* &> /dev/null')
+    os.system('rm debug/* &> /dev/null')
+    os.system('rm brs/* &> /dev/null')
+    os.system('rm input/*.gz &> /dev/null')
+    os.system('rm lz77_brs/* &> /dev/null')
 
 def stored_test():
     clear_dirs()
@@ -257,8 +257,8 @@ def random_test():
         byte_ranges = random_brs(os.path.getsize(INPUT_DIR + '/' + in_file))
         br_arg = ','.join(str(s) + ',' + str(e) for (s, e) in byte_ranges)
         # run debreach on the test file
-        print '../minidebreach -b ' +  br_arg + ' ' + INPUT_DIR + '/' + in_file + ' 1> output_lits/' + in_file + ' 2> debug/' + in_file
-        os.system('../minidebreach -b ' + br_arg + ' ' + INPUT_DIR + '/' + in_file + ' 1> output_lits/' + in_file + ' 2> debug/' + in_file)
+        print '../minidebreach -b ' +  br_arg + ' ' + INPUT_DIR + '/' + in_file + ' 2> debug/' + in_file
+        os.system('../minidebreach -b ' + br_arg + ' ' + INPUT_DIR + '/' + in_file + ' 2> debug/' + in_file)
         os.system('mv ' + INPUT_DIR + '/' + in_file + '.gz output')
 
         # validate integreity
@@ -271,6 +271,8 @@ def random_test():
         if not validate_sec_brs(byte_ranges, 'lz77_brs/' + in_file):
             print "Error: security validation failed"
             exit(1)
+
+        clear_dirs()
 
 if __name__ == '__main__':
     parser = OptionParser()
