@@ -1,4 +1,4 @@
-import os, math, random
+import os, math, random, shutil
 import re
 import mmap
 from optparse import OptionParser
@@ -105,6 +105,8 @@ def overlaps(brs1, brs2):
     for (s1, e1) in brs2:
         for (s2, e2) in brs1:
             if  min(e1, e2) >= max(s1, s2):
+                print str(s1) + '-' + str(e1)
+                print str(s2) + '-' + str(e2)
                 return True
     return False
 
@@ -132,7 +134,7 @@ def random_brs(file_size, coverage=0.1, max_len=300, min_len=3):
     file_size = float(file_size)
     brs = []
     avg_size = math.ceil(float(max_len - min_len)/float(2))
-    starts = random.sample(xrange(int(file_size)), int(math.floor((file_size*coverage)/avg_size)))
+    starts = random.sample(xrange(int(file_size)), int(math.ceil((file_size*coverage)/avg_size)))
     starts.sort()
     brs = []
     last_end = -1
@@ -144,7 +146,7 @@ def random_brs(file_size, coverage=0.1, max_len=300, min_len=3):
             brs.append((starts[i], starts[i] + random.randint(min_len, max_len + 1) - 1))
 
     if brs[-1][1] >= file_size:
-        brs[-1] = (brs[-1][0], file_size - 1)
+        brs[-1] = (brs[-1][0], int(file_size - 1))
 
     return brs
 
@@ -179,16 +181,18 @@ def validate_brs(br_file, tokens):
     return True
 
 def clear_dirs():
-    os.system('rm output/* &> /dev/null')
-    os.system('rm output_lits/* &> /dev/null')
-    os.system('rm debug/* &> /dev/null')
-    os.system('rm brs/* &> /dev/null')
-    os.system('rm input/*.gz &> /dev/null')
-    os.system('rm lz77_brs/* &> /dev/null')
+    os.popen('rm -f output/* &> /dev/null')
+    os.popen('rm -f output_lits/* &> /dev/null')
+    os.popen('rm -f debug/* &> /dev/null')
+    os.popen('rm -f brs/* &> /dev/null')
+    os.popen('rm -f lz77_brs/* &> /dev/null')
 
 def stored_test():
     clear_dirs()
     for in_file in os.listdir(INPUT_DIR):
+
+        if in_file.endswith('.gz'): continue
+
         site_id = in_file.split('_')[0]
         print "Processing file: " + in_file
         if site_id not in site_REs:
@@ -248,18 +252,17 @@ def brs_only():
 def random_test():
     clear_dirs()
     for in_file in os.listdir(INPUT_DIR):
-        site_id = in_file.split('_')[0]
-        print "Processing file: " + in_file
-        if site_id not in site_REs:
-            print "Error: no regex found for site_id=" + site_id
-            exit(1)
-
-        byte_ranges = random_brs(os.path.getsize(INPUT_DIR + '/' + in_file))
+        if in_file.endswith('.gz'): continue
+        byte_ranges = random_brs(os.path.getsize(INPUT_DIR + '/' + in_file), max_len=300, min_len=5)
         br_arg = ','.join(str(s) + ',' + str(e) for (s, e) in byte_ranges)
         # run debreach on the test file
         print '../minidebreach -b ' +  br_arg + ' ' + INPUT_DIR + '/' + in_file + ' 2> debug/' + in_file
-        os.system('../minidebreach -b ' + br_arg + ' ' + INPUT_DIR + '/' + in_file + ' 2> debug/' + in_file)
-        os.system('mv ' + INPUT_DIR + '/' + in_file + '.gz output')
+        ret = os.system('../minidebreach -b ' + br_arg + ' ' + INPUT_DIR + '/' + in_file + ' 2> debug/' + in_file)
+        if ret != 0:
+            print "Error: non-zero exit status from minidebreach"
+            exit(1)
+        
+        shutil.move(INPUT_DIR + '/' + in_file + '.gz', 'output/' + in_file + '.gz')
 
         # validate integreity
         ret = os.system('../minigzip -d output/' + in_file + '.gz 2> lz77_brs/' + in_file)
@@ -267,12 +270,12 @@ def random_test():
             print "Error: non-zero exit status from gunzip"
             exit(1)
 
-        byte_ranges = [(byte_ranges[i], byte_ranges[i + 1]) for i in range(0, len(byte_ranges), 2)]
         if not validate_sec_brs(byte_ranges, 'lz77_brs/' + in_file):
             print "Error: security validation failed"
             exit(1)
-
-        clear_dirs()
+        else:
+            os.remove('lz77_brs/' + in_file)
+            os.remove('output/' + in_file)
 
 if __name__ == '__main__':
     parser = OptionParser()

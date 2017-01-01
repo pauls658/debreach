@@ -320,6 +320,7 @@ int ZEXPORT deflateInit2_(strm, level, method, windowBits, memLevel, strategy,
 	s->tainted_brs = (int *) ZALLOC(strm, s->taint_cap, sizeof(int));
 	s->tainted_brs[0] = 0;
 	s->tainted_brs[1] = 0;
+	s->cur_taint = s->tainted_brs;
 #endif
 
     if (s->window == Z_NULL || s->prev == Z_NULL || s->head == Z_NULL ||
@@ -1914,6 +1915,7 @@ int ZEXPORT taint_brs(strm, brs, len)
 	unsigned int needed = cur_size + len;
 	size_t new_size = 0;
 	if (needed > state->taint_cap) {
+		unsigned int cur_taint_i = state->cur_taint - state->tainted_brs;
 		while (state->taint_cap < needed) {
 			state->taint_cap *= 2;
 		}
@@ -1925,6 +1927,7 @@ int ZEXPORT taint_brs(strm, brs, len)
 			return -1;
 		}
 		// TODO: better alloc error handling
+		state->cur_taint = state->tainted_brs + cur_taint_i;
 	}
 
 	unsigned int i = 0;
@@ -2591,7 +2594,7 @@ local uInt longest_match_debreach(s, cur_match)
     register ush scan_end   = *(ushf*)(scan+best_len-1);
 #else
     register Bytef *strend;
-    if (taint[0] == 0 || (taint[0] - s->strstart) > MAX_MATCH) {
+    if (taint[0] < 0 || (taint[0] - s->strstart) > MAX_MATCH) {
       strend = s->window + s->strstart + MAX_MATCH;
     } else {
       strend = s->window + taint[0];
@@ -2637,20 +2640,24 @@ local uInt longest_match_debreach(s, cur_match)
 #ifdef BDEBUG
 		fprintf(stderr, "cur_match = %d, match = %c\n", cur_match, *match);
 #endif
-		/* NOTE: I think the first conditional here opens a vulnerablity up */
-		if ((taint[0] != 0) && s->next_taint[cur_match] != -1 &&
-	    	(scan + (s->next_taint[cur_match]) <= strend) &&
-	    	(s->window[s->next_taint[cur_match] + s->strstart] ==
-	    	*(scan + s->next_taint[cur_match]))) {
+		if (s->next_taint[cur_match] != -1) {
+			if (s->next_taint[cur_match] < MIN_MATCH) continue;
 
-	    	floop = 1;
+	    	if ((scan + (s->next_taint[cur_match]) <= strend) &&
+	    		(*(match + s->next_taint[cur_match]) ==
+	    		*(scan + s->next_taint[cur_match]))) {
+
+	    		floop = 1;
 #ifdef BDEBUG
-	    	fprintf(stderr, "Flooping index:%d = %c to ", cur_match, s->window[s->next_taint[cur_match] + s->strstart]);
+	    		fprintf(stderr, "Flooping index:%d = %c to ", cur_match, s->window[s->next_taint[cur_match] + s->strstart]);
 #endif
-	    	s->window[s->next_taint[cur_match] + s->strstart]++;
+	    		s->window[s->next_taint[cur_match] + s->strstart]++;
 #ifdef BDEBUG
-	    	fprintf(stderr, "%c\n", s->window[s->next_taint[cur_match] + s->strstart]);
+	    		fprintf(stderr, "%c\n", s->window[s->next_taint[cur_match] + s->strstart]);
 #endif
+			} else {
+				floop = 0;
+			}
 		} else {
 	   		floop = 0;
 		}
@@ -2667,7 +2674,15 @@ local uInt longest_match_debreach(s, cur_match)
          * UNALIGNED_OK if your compiler uses a different size.
          */
         if (*(ushf*)(match+best_len-1) != scan_end ||
-            *(ushf*)match != scan_start) continue;
+            *(ushf*)match != scan_start) {
+			if (floop == 1) {
+	    		s->window[s->next_taint[cur_match] + s->strstart]--; 
+#ifdef BDEBUG
+	    		fprintf(stderr, "Unflooping to: %c\n", s->window[s->next_taint[cur_match] + s->strstart]); 
+#endif
+			}
+			continue;
+		}
 
         /* It is not necessary to compare scan[2] and match[2] since they are
          * always equal when the other bytes match, given that the hash keys
@@ -2782,8 +2797,21 @@ local block_state deflate_debreach(s, flush)
 
 	// Make sure cur_taint is where it should be
 	s->cur_taint = s->tainted_brs;
-	//while (!(s->cur_taint[0] == 0 && s->cur_taint[1] == 0) && 
-	//	   (s->cur_taint[1] < s->strstart || s->cur_taint[1] < 0)) s->cur_taint += 2;
+	while (!(s->cur_taint[0] == 0 && s->cur_taint[1] == 0)) { 
+		if (s->cur_taint[0] < 0 && s->cur_taint[1] < 0) {
+			s->cur_taint += 2;
+			// passed this byte range already
+		} else if (s->strstart >= s->cur_taint[0] && s->strstart <= s->cur_taint[1]) {
+			// were in it
+			break;
+		} else if (s->strstart > s->cur_taint[1]) {
+			// we passed it
+			s->cur_taint += 2;
+		} else if (s->strstart < s->cur_taint[0]) {
+			// The above could just be an else I think
+			break;
+		}
+	}
 #ifdef DEBUG_WINDOW
 	fprintf(stderr, "cur_taint index: %ld\n", s->cur_taint - s->tainted_brs);
 #endif
@@ -2817,10 +2845,12 @@ local block_state deflate_debreach(s, flush)
 		* between s->strstart .. s->strstart + MIN_MATCH
 		* Note: if the match at the previous step 
 	  	*/
-		if (s->strstart + MIN_MATCH - 1 >= s->cur_taint[0] && s->strstart <= s->cur_taint[1]) {
+		if (!(s->cur_taint[0] == 0 && s->cur_taint[1] == 0) &&
+			(s->strstart + MIN_MATCH - 1 >= s->cur_taint[0] || s->cur_taint[0] < 0) 
+			&& s->strstart <= s->cur_taint[1]) {
 	    	uInt advance = s->cur_taint[1] - s->strstart + 1;
-		    if (advance > s->lookahead - MIN_MATCH) {
-				advance = s->lookahead - MIN_MATCH;
+		    if (advance > s->lookahead) {
+				advance = s->lookahead;
 	    	} 
 #ifdef BDEBUG
 		    fprintf(stderr, "Advancing: %d\n", advance);
@@ -2831,42 +2861,20 @@ if (s->strstart >= s->cur_taint[0] && s->strstart <= s->cur_taint[1]) {
 	fprintf(stderr, "strstart=%u, s->cur_taint[0]=%u, s->cur_taint[1]=%u\n", s->strstart, s->cur_taint[0], s->cur_taint[1]);
 }
 #endif
+			s->match_length = MIN_MATCH - 1;
+			s->prev_length = MIN_MATCH - 1;
 			if (s->match_available) {
 				// we have a "match" buffered. It may be an actual match that we want
 				// to output, or there could be no match
 				s->match_available = 0;
-				if (s->match_length >= MIN_MATCH) {
-#ifdef BDEBUG
-					fprintf(stderr, "Pooping out match before advancing. Match length: %d\n", s->match_length);
-#endif
-					// Good match. Output it
-					// Note that we incremented strstart in the last round, but we
-					// haven't yet moved the match_start or match_length
-					_tr_tally_dist(s, s->strstart - 1 - s->match_start,
-								   s->match_length - MIN_MATCH, bflush);
-					/**
-					 * Since the initial if conditional evaluated to true, the longest match
-					 * we can have between strstart and s->cur_taint[0] is 2. This means that there 
-					 * are no strings to put in the hash table. This also means that the length
-					 * of the match in the previous step must be 3.
-					 */
-					s->strstart += s->match_length - 1;
-					// match_length should always be MIN_MATCH
-					s->lookahead -= s->match_length - 1;
-					s->match_length = MIN_MATCH - 1;
-            		if (bflush) FLUSH_BLOCK(s, 0);
-
-				    advance -= s->match_length - 1;
-				} else {
-					// No good match found in the previous round. Just output a lit
-					_tr_tally_lit(s, s->window[s->strstart - 1], bflush);
-#ifdef BDEBUG
-					fprintf(stderr, "tally_lit cur: %c\n", s->window[s->strstart - 1]);
+				_tr_tally_lit(s, s->window[s->strstart - 1], bflush);
+#ifdef DEBUG_OUT
+				fprintf(stderr, "tally_lit cur: %c\n", s->window[s->strstart - 1]);
 #endif
 
-            		if (bflush) FLUSH_BLOCK_ONLY(s, 0);
-            		if (s->strm->avail_out == 0) return need_more;
-
+            	if (bflush) FLUSH_BLOCK_ONLY(s, 0);
+            	if (s->strm->avail_out == 0) {
+					return need_more;
 				}
 			}
 
@@ -2874,25 +2882,32 @@ if (s->strstart >= s->cur_taint[0] && s->strstart <= s->cur_taint[1]) {
 				//not sure why I thought this should be incrememented first
 				//s->strstart++;	
 				_tr_tally_lit(s, s->window[s->strstart], bflush);
-#ifdef BDEBUG
+#ifdef DEBUG_OUT
 				fprintf(stderr, "tally_lit adv: %c\n", s->window[s->strstart]);
 #endif
+				s->strstart++;	
+				s->lookahead--;
             	if (bflush) {
                 	FLUSH_BLOCK_ONLY(s, 0);
             	}
-				s->strstart++;	
 				advance--;
-				s->lookahead--;
-            	if (s->strm->avail_out == 0) return need_more;
+            	if (s->strm->avail_out == 0) {
+					return need_more;
+				}
 		    }
 
 	    	// Recalculate s->ins_h
 		    s->ins_h = 0;
-		    for (i = MIN_MATCH - 1; i > 0; i--) {
+		    for (i = (MIN_MATCH - 1 > s->strstart) ? s->strstart : MIN_MATCH - 1; 
+				 i > 0; 
+				 i--) {
 	    		UPDATE_HASH(s, s->ins_h, s->window[s->strstart - i]);
 		    }
-		    s->cur_taint++;
-	    	s->cur_taint++;
+			if (s->lookahead == 0) break;
+			while (s->strstart > s->cur_taint[1] &&
+				   !(s->cur_taint[0] == 0 && s->cur_taint[1] == 0)) s->cur_taint += 2;
+			
+			continue;
 		}
         /* Insert the string window[strstart .. strstart+2] in the
          * dictionary, and set hash_head to the head of the hash chain:
@@ -2966,15 +2981,24 @@ if (s->strstart >= s->cur_taint[0] && s->strstart <= s->cur_taint[1]) {
              * enough lookahead, the last two strings are not inserted in
              * the hash table.
              */
+#ifdef DEBUG_OUT
+			fprintf(stderr, "output match: %c%c", s->window[s->strstart - 1], s->window[s->strstart]);
+#endif
             s->lookahead -= s->prev_length-1;
             s->prev_length -= 2;
             do {
                 if (++s->strstart <= max_insert) {
+#ifdef DEBUG_OUT
+					fprintf(stderr, "%c", s->window[s->strstart]);
+#endif
                     INSERT_STRING(s, s->strstart, hash_head);
 	 	    		s->next_taint[s->strstart] = (s->cur_taint[0] - s->strstart > MAX_MATCH) ?
 													-1 : s->cur_taint[0] - s->strstart ;
                 }
             } while (--s->prev_length != 0);
+#ifdef DEBUG_OUT
+					fprintf(stderr, "\n");
+#endif
             s->match_available = 0;
             s->match_length = MIN_MATCH-1;
             s->strstart++;
@@ -2988,7 +3012,7 @@ if (s->strstart >= s->cur_taint[0] && s->strstart <= s->cur_taint[1]) {
              */
             Tracevv((stderr,"%c", s->window[s->strstart-1]));
             _tr_tally_lit(s, s->window[s->strstart-1], bflush);
-#ifdef BDEBUG
+#ifdef DEBUG_OUT
 			fprintf(stderr, "tally_lit prev: %c\n", s->window[s->strstart - 1]);
 #endif
             if (bflush) {
@@ -3010,7 +3034,7 @@ if (s->strstart >= s->cur_taint[0] && s->strstart <= s->cur_taint[1]) {
     if (s->match_available) {
         Tracevv((stderr,"%c", s->window[s->strstart-1]));
         _tr_tally_lit(s, s->window[s->strstart-1], bflush);
-#ifdef BDEBUG
+#ifdef DEBUG_OUT
 		fprintf(stderr, "tally_lit last: %c\n", s->window[s->strstart - 1]);
 #endif
         s->match_available = 0;

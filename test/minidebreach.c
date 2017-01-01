@@ -420,7 +420,7 @@ int gzcloset(gz, unsafe)
         do {
             strm->next_out = out;
             strm->avail_out = BUFLEN;
-            (void)deflate(strm, Z_FINISH);
+            (void)debreach(strm, Z_FINISH);
             fwrite(out, 1, BUFLEN - strm->avail_out, gz->file);
         } while (strm->avail_out == 0);
         deflateEnd(strm);
