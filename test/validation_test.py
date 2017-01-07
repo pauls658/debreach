@@ -5,10 +5,12 @@ from optparse import OptionParser
 
 INPUT_DIR='./input'
 
-site_REs = {
-        'gmail' : re.compile(r'GM_ACTION_TOKEN="([^"]*)"'),
-        'facebook' : re.compile(r'fb_dtsg\\?" value=\\?"([^\"\\]*)\\?"')
-}
+TOKEN_RE_FILE = "test_data/token_res" 
+
+site_REs = {}
+for line in open(TOKEN_RE_FILE, 'rb'):
+    site, regex = line.strip().split(' ', 1)
+    site_REs[site] = re.compile(regex)
 
 def validate_validation():
     clear_dirs()

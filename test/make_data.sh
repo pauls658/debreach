@@ -8,6 +8,9 @@ DOCS_DIR="docs"
 # folders in $TEST_DATA to ignore
 IGNORE="crafted"
 
+declare -A HAS_TOKEN
+HAS_TOKEN["facebook"]='fb_dtsg\\?\" value'
+
 if [[ -z $1 ]]; then
 	echo "Need data type"
 	echo "Usage: ./make_data.sh <data-type>"

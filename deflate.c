@@ -1781,54 +1781,10 @@ int ZEXPORT declare_unsafe(strm, unsafe)
 		br_i += 2;
 	}
 
-	// Special case where partial tainted string appears at the beginning of the buffer	
 	char **temp;
 	char *unsafe_str;
 	unsigned int match_len = 0;
 	short match = 1;
-	unsigned unsafe_pos = 0;
-	for (temp = unsafe; *temp != NULL; temp++) {
-		unsafe_str = *temp;
-		// check all substrings
-		while (*unsafe_str != '\0') {
-			match = 1;
-			unsafe_pos = 0;
-			while(unsafe_str[unsafe_pos] != '\0' && unsafe_pos < strm->avail_in) {
-				if (unsafe_str[unsafe_pos] != buf[unsafe_pos]) {
-					match = 0;
-					break;
-				}
-				unsafe_pos++;
-			}
-			if (match) {
-				//fprintf(stderr, "match found out beginning: ");
-				//fwrite(buf, 1, unsafe_pos + 1, stderr);
-				//fprintf(stderr, "\n");
-				// unsafe_pos is at the index just after the end of the
-				// string
-				match_len = u_max(match_len, unsafe_pos);
-				// we can stop checking substrings of this string
-				// breaking here goes to the next unsafe string
-				break;
-			}
-			unsafe_str++;
-		}
-	}
-
-	// match_len is only updated if we found a match in the previous loop
-	// therefore match_len == 0 if there were no matches found
-	if (match_len > 0) {
-		if (br_i + 4 > s->taint_cap - 2) {
-			s->taint_cap = 2*s->taint_cap;
-			s->tainted_brs = (unsigned int*) realloc(s->tainted_brs, s->taint_cap*sizeof(unsigned int));
-			brs = s->tainted_brs;
-		}
-		brs[br_i] = 0 + s->strstart + s->lookahead;
-		brs[br_i + 1] = match_len - 1 + s->strstart + s->lookahead;
-		//fprintf(stderr, "Making byte range: %d - %d\n", brs[0], brs[1]);
-		buf_i += match_len;
-		br_i += 2;
-	}
 
 	while (buf_i < strm->avail_in) {
 		// check if any of the unsafe strings appear at buf_i
@@ -1839,7 +1795,11 @@ int ZEXPORT declare_unsafe(strm, unsafe)
 			// Check if any unsafe strings appear at buf_i. Also make sure we don't go
 			// out of the buffer
 			while (unsafe_str[match_len] != '\0' && buf_i + match_len < strm->avail_in) {
-				if (unsafe_str[match_len] != buf[buf_i + match_len]) {
+				if (buf_i + match_len < strm->avail_in) {
+					// TODO: the stop and resume thing
+					match = 0;
+					break;
+				} else if (unsafe_str[match_len] != buf[buf_i + match_len]) {
 					match = 0;
 					break;
 				}

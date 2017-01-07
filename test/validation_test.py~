@@ -5,10 +5,12 @@ from optparse import OptionParser
 
 INPUT_DIR='./input'
 
-site_REs = {
-        'gmail' : re.compile(r'GM_ACTION_TOKEN="([^"]*)"'),
-        'facebook' : re.compile(r'fb_dtsg\\?" value=\\?"([^\"\\]*)\\?"')
-}
+TOKEN_RE_FILE = "test_data/token_res" 
+
+site_REs = {}
+for line in open(TOKEN_RE_FILE, 'rb'):
+    site, regex = line.strip().split(' ', 1)
+    site_REs[site] = re.compile(regex)
 
 def validate_validation():
     clear_dirs()
@@ -252,6 +254,7 @@ def brs_only():
 def random_test():
     clear_dirs()
     for in_file in os.listdir(INPUT_DIR):
+        if in_file.endswith('.gz'): continue
         byte_ranges = random_brs(os.path.getsize(INPUT_DIR + '/' + in_file), max_len=300, min_len=5)
         br_arg = ','.join(str(s) + ',' + str(e) for (s, e) in byte_ranges)
         # run debreach on the test file
