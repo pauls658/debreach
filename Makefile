@@ -24,7 +24,7 @@ CFLAGS=-g -O0  -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -DPOSTINC -DVALIDATE_SEC -D
 #CFLAGS=-O3 -Wall -Wwrite-strings -Wpointer-arith -Wconversion \
 #           -Wstrict-prototypes -Wmissing-prototypes
 
-SFLAGS=-g -O0  -fPIC -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -DPOSTINC -DVALIDATE_SEC -DDEBREACH # -DPRINT_LITS
+SFLAGS=-g -O0  -fPIC -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -DPOSTINC -DVALIDATE_SEC -DDEBREACH
 LDFLAGS= 
 TEST_LDFLAGS=-L. libz.a
 LDSHARED=gcc -shared -Wl,-soname,libz.so.1,--version-script,zlib.map

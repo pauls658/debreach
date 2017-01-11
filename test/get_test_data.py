@@ -2,6 +2,7 @@ import sys, os, glob, shutil
 import re
 
 OUTPUT_DIR = "input"
+TOKENS_DIR = "tokens"
 TEST_DATA_DIR = "test_data"
 DOCS_DIR = "docs"
 IGNORE_DIRS = ["crafted", "token_res"]
@@ -62,6 +63,8 @@ def main(options):
             tokens = find_all_tokens(site_name)
             print "Tokens found for " + site_name + ":"
             print tokens
+            with open(TOKENS_DIR + "/" + site_name, 'wb') as f_ref:
+                f_ref.write("\n".join(tokens))
             files = skim_nontoken_files(files, tokens)
 
         move_files(files, site_name)

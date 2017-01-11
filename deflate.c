@@ -1794,8 +1794,8 @@ int ZEXPORT declare_unsafe(strm, unsafe)
 			match = 1;
 			// Check if any unsafe strings appear at buf_i. Also make sure we don't go
 			// out of the buffer
-			while (unsafe_str[match_len] != '\0' && buf_i + match_len < strm->avail_in) {
-				if (buf_i + match_len < strm->avail_in) {
+			while (unsafe_str[match_len] != '\0') {
+				if (buf_i + match_len >= strm->avail_in) {
 					// TODO: the stop and resume thing
 					match = 0;
 					break;

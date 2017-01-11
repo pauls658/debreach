@@ -1,10 +1,12 @@
 import os, math, random, shutil
+from subprocess import call
+from collections import defaultdict
 import re
 import mmap
 from optparse import OptionParser
 
-INPUT_DIR='./input'
-
+INPUT_DIR="input"
+TOKENS_DIR="tokens"
 TOKEN_RE_FILE = "test_data/token_res" 
 
 site_REs = {}
@@ -123,14 +125,15 @@ def find_tokens(input_file, site_id):
 # http://stackoverflow.com/questions/6980969/how-to-find-position-of-word-in-file
 def find_byte_ranges(input_file, tokens):
     brs = []
+    found_tokens = set()
     with open(input_file, 'rb') as f_ref:
         # 0 means the whole file
         mf = mmap.mmap(f_ref.fileno(), 0, prot=mmap.PROT_READ)
         mf.seek(0)
-        for match in re.finditer(r'|'.join(tokens), mf):
-            brs.append(match.start())
-            brs.append(match.end())
-    return brs 
+        for match in re.finditer(r'|'.join(re.escape(token) for token in tokens), mf):
+            brs.append((match.start(), match.end() - 1))
+            found_tokens.add(match.group(0))
+    return brs, found_tokens 
 
 def random_brs(file_size, coverage=0.1, max_len=300, min_len=3):
     file_size = float(file_size)
@@ -279,6 +282,48 @@ def random_test():
             os.remove('lz77_brs/' + in_file)
             os.remove('output/' + in_file)
 
+def token_test(verbose=False):
+    clear_dirs()
+
+    all_tokens = defaultdict(set)
+    for site_name in os.listdir(TOKENS_DIR):
+        for line in open(TOKENS_DIR + "/" + site_name, 'rb'):
+            line = line.strip()
+            all_tokens[site_name].add(line)
+
+    for in_file in os.listdir(INPUT_DIR):
+        if in_file.endswith('.gz'): continue
+
+        fp = INPUT_DIR + "/" + in_file
+        site_name = in_file.split('_')[0]
+
+        tainted_brs, present_tokens = find_byte_ranges(fp, all_tokens[site_name])
+
+        unsafe_arg = ",".join(present_tokens)
+        print "../minidebreach -s " + unsafe_arg + " " + fp + " 2> debug/" + in_file
+        ret = os.system("../minidebreach -s '" + unsafe_arg + "' " + fp + " 2> debug/" + in_file)
+        if ret != 0:
+            print "Error: non-zero exit status from minidebreach"
+            exit(1)
+
+        shutil.move(INPUT_DIR + '/' + in_file + '.gz', 'output/' + in_file + '.gz')
+
+        # validate integreity
+        ret = os.system('../minigzip -d output/' + in_file + '.gz 2> lz77_brs/' + in_file)
+        if ret != 0:
+            print "Error: non-zero exit status from gunzip"
+            exit(1)
+
+        if verbose:
+            print "Validating against brs:"
+            print tainted_brs
+        if not validate_sec_brs(tainted_brs, 'lz77_brs/' + in_file):
+            print "Error: security validation failed"
+            exit(1)
+        else:
+            os.remove('lz77_brs/' + in_file)
+            os.remove('output/' + in_file)
+
 if __name__ == '__main__':
     parser = OptionParser()
     parser.add_option("-b", "--brs-only",
@@ -287,12 +332,18 @@ if __name__ == '__main__':
     parser.add_option("-s", "--stored",
                         action="store_true", dest="stored_test", default=False,
                         help="Test the debreach stored module")
-    parser.add_option("-v", "--validate-validation",
+    parser.add_option("-x", "--validate-validation",
                         action="store_true", dest="valval", default=False,
-                        help="Validate the validation module lol")
+                        help="Validate the validation module lolololol")
     parser.add_option("-r", "--random-brs",
                         action="store_true", dest="random", default=False,
                         help="Do validation with random byte ranges")
+    parser.add_option("-t", "--token-validation",
+                        action="store_true", dest="token_test", default=False,
+                        help="Do validation test for tokens")
+    parser.add_option("-v", "--verbose",
+                        action="store_true", dest="verbose", default=False,
+                        help="Be verbose")
     (options, args) = parser.parse_args()
     if options.brs_only:
         brs_only()
@@ -302,4 +353,5 @@ if __name__ == '__main__':
         validate_validation()
     elif options.random:
         random_test()
-
+    elif options.token_test:
+        token_test(options.verbose)

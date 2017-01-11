@@ -2,9 +2,10 @@ import sys, os, glob, shutil
 import re
 
 OUTPUT_DIR = "input"
+TOKENS_DIR = "tokens"
 TEST_DATA_DIR = "test_data"
 DOCS_DIR = "docs"
-IGNORE_DIRS = ["crafted"]
+IGNORE_DIRS = ["crafted", "token_res"]
 
 TOKEN_RE_FILE = "test_data/token_res" 
 
