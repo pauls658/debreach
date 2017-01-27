@@ -757,7 +757,7 @@ int main(argc, argv)
 			}
 			// + 2 for the double null terminator
 			taint = (int *) malloc(sizeof(int)*(n + 2));
-			taint_len = n + 2;
+			taint_len = n + 3;
 			char *temp;
 			int i = 0;
 			while (1) {

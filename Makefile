@@ -72,7 +72,7 @@ PIC_OBJS = $(PIC_OBJC) $(PIC_OBJA)
 
 all: static shared all64
 
-static: example$(EXE) minigzip$(EXE) minidebreach$(EXE)
+static: example$(EXE) minigzip$(EXE) minidebreach$(EXE) timeit$(EXE)
 
 shared: examplesh$(EXE) minigzipsh$(EXE)
 
@@ -149,6 +149,9 @@ minigzip.o: test/minigzip.c zlib.h zconf.h
 minidebreach.o: test/minidebreach.c zlib.h zconf.h
 	$(CC) $(CFLAGS) -g -I. -c -o $@ test/minidebreach.c
 
+timeit.o: test/timeit.c zlib.h zconf.h
+	$(CC) $(CFLAGS) -g -I. -c -o $@ test/timeit.c
+
 minidebreach-stored.o: test/minidebreach-stored.c zlib.h zconf.h
 	$(CC) $(CFLAGS) -g -I. -c -o $@ test/minidebreach-stored.c
 
@@ -183,6 +186,9 @@ examplesh$(EXE): example.o $(SHAREDLIBV)
 
 minidebreach$(EXE): minidebreach.o $(STATICLIB)
 	$(CC) $(CFLAGS) -g -o $@ minidebreach.o $(TEST_LDFLAGS)
+
+timeit$(EXE): timeit.o $(STATICLIB)
+	$(CC) $(CFLAGS) -g -o $@ timeit.o $(TEST_LDFLAGS)
 
 minidebreach-stored$(EXE): minidebreach-stored.o $(STATICLIB)
 	$(CC) $(CFLAGS) -g -o $@ minidebreach-stored.o $(TEST_LDFLAGS)
@@ -255,7 +261,7 @@ mostlyclean: clean
 clean:
 	rm -f *.o *.lo *~ \
 	   example$(EXE) minigzip$(EXE) examplesh$(EXE) minigzipsh$(EXE) \
-	   example64$(EXE) minigzip64$(EXE) minidebreach* \
+	   example64$(EXE) minigzip64$(EXE) minidebreach* timeit*\
 	   infcover \
 	   libz.* foo.gz so_locations \
 	   _match.s maketree contrib/infback9/*.o

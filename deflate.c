@@ -439,6 +439,12 @@ int ZEXPORT deflateResetKeep (strm)
         adler32(0L, Z_NULL, 0);
     s->last_flush = Z_NO_FLUSH;
 
+#ifdef DEBREACH
+	s->tainted_brs[0] = 0;
+	s->tainted_brs[1] = 0;
+	s->cur_taint = s->tainted_brs;
+#endif
+
     _tr_init(s);
 
     return Z_OK;
@@ -1331,6 +1337,7 @@ int ZEXPORT deflateEnd (strm)
     /* Deallocate in reverse order of allocations: */
 #ifdef DEBREACH
     TRY_FREE(strm, strm->state->next_taint);
+	free(strm->state->tainted_brs);
 #endif
     TRY_FREE(strm, strm->state->pending_buf);
     TRY_FREE(strm, strm->state->head);
@@ -2772,9 +2779,7 @@ local block_state deflate_debreach(s, flush)
 			break;
 		}
 	}
-#ifdef DEBUG_WINDOW
-	fprintf(stderr, "cur_taint index: %ld\n", s->cur_taint - s->tainted_brs);
-#endif
+
     int i;
     /* Process the input block. */
     for (;;) {
@@ -2790,14 +2795,6 @@ local block_state deflate_debreach(s, flush)
             }
             if (s->lookahead == 0) break; /* flush the current block */
         }
-#ifdef BDEBUG
-        fprintf(stderr, "Starting round\n");
-		fprintf(stderr, "Window buffer/lookahead: ");
-		fwrite(s->window + s->block_start, 1, s->strstart, stderr);
-		fprintf(stderr, " / ");
-		fwrite(s->window + s->strstart, 1, s->lookahead, stderr);
-		fprintf(stderr, "\n\n");
-#endif
 
 		/** If s->strstart is in a s->cur_tainted region, then advance it
 	  	* until we are no longer in s->cur_taint.
