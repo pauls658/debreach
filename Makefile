@@ -18,13 +18,14 @@
 
 CC=gcc
 
-CFLAGS=-g -O0  -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -DPOSTINC -DVALIDATE_SEC -DDEBREACH
+CFLAGS=-O3  -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -DDEBREACH
 #CFLAGS=-O -DMAX_WBITS=14 -DMAX_MEM_LEVEL=7
 #CFLAGS=-g -DDEBUG
 #CFLAGS=-O3 -Wall -Wwrite-strings -Wpointer-arith -Wconversion \
 #           -Wstrict-prototypes -Wmissing-prototypes
+TIMEIT=-O0
 
-SFLAGS=-g -O0  -fPIC -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -DPOSTINC -DVALIDATE_SEC -DDEBREACH
+SFLAGS=-O3  -fPIC -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -DDEBREACH
 LDFLAGS= 
 TEST_LDFLAGS=-L. libz.a
 LDSHARED=gcc -shared -Wl,-soname,libz.so.1,--version-script,zlib.map
@@ -72,7 +73,7 @@ PIC_OBJS = $(PIC_OBJC) $(PIC_OBJA)
 
 all: static shared all64
 
-static: example$(EXE) minigzip$(EXE) minidebreach$(EXE) timeit$(EXE)
+static: example$(EXE) minigzip$(EXE) minidebreach$(EXE) timeit$(EXE) singlefile$(EXE)
 
 shared: examplesh$(EXE) minigzipsh$(EXE)
 
@@ -150,7 +151,10 @@ minidebreach.o: test/minidebreach.c zlib.h zconf.h
 	$(CC) $(CFLAGS) -g -I. -c -o $@ test/minidebreach.c
 
 timeit.o: test/timeit.c zlib.h zconf.h
-	$(CC) $(CFLAGS) -g -I. -c -o $@ test/timeit.c
+	$(CC) $(TIMEIT) -I. -c -o $@ test/timeit.c
+
+singlefile.o: test/singlefile.c zlib.h zconf.h
+	$(CC) $(singlefile) -I. -c -o $@ test/singlefile.c
 
 minidebreach-stored.o: test/minidebreach-stored.c zlib.h zconf.h
 	$(CC) $(CFLAGS) -g -I. -c -o $@ test/minidebreach-stored.c
@@ -188,7 +192,10 @@ minidebreach$(EXE): minidebreach.o $(STATICLIB)
 	$(CC) $(CFLAGS) -g -o $@ minidebreach.o $(TEST_LDFLAGS)
 
 timeit$(EXE): timeit.o $(STATICLIB)
-	$(CC) $(CFLAGS) -g -o $@ timeit.o $(TEST_LDFLAGS)
+	$(CC) $(TIMEIT) -o $@ timeit.o $(TEST_LDFLAGS)
+
+singlefile$(EXE): singlefile.o $(STATICLIB)
+	$(CC) $(singlefile) -o $@ singlefile.o $(TEST_LDFLAGS)
 
 minidebreach-stored$(EXE): minidebreach-stored.o $(STATICLIB)
 	$(CC) $(CFLAGS) -g -o $@ minidebreach-stored.o $(TEST_LDFLAGS)
@@ -261,7 +268,7 @@ mostlyclean: clean
 clean:
 	rm -f *.o *.lo *~ \
 	   example$(EXE) minigzip$(EXE) examplesh$(EXE) minigzipsh$(EXE) \
-	   example64$(EXE) minigzip64$(EXE) minidebreach* timeit*\
+	   example64$(EXE) minigzip64$(EXE) minidebreach* timeit* singlefile*\
 	   infcover \
 	   libz.* foo.gz so_locations \
 	   _match.s maketree contrib/infback9/*.o

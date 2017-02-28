@@ -4,8 +4,10 @@
 #include <time.h>
 #include <stdlib.h>
 
-#define ROUNDS 100
-#define BUFLEN      1024
+#define ROUNDS 10
+#define TRIALS 100
+#define WARMUPS 20
+#define BUFLEN 16384
 #define MAX_NAME_LEN 1024
 #define MAX_UNSAFE_LEN 1024
 
@@ -186,7 +188,7 @@ int main(argc, argv)
 {
 	int *taint;
 
-	int n;
+	int n, file_i = 2;
 	if (argc == 3) {
 
 		n = charCount(argv[1], ',') + 1;
@@ -223,23 +225,38 @@ int main(argc, argv)
 		taint[n] = 0;
 		taint[n + 1] = 0;
 	} else {
+		file_i = 1;
 		taint = NULL;
 	}
 
 	// Compression data structures that we only want to allocate once
 	FILE *in;
-	in = fopen(argv[2], "rb");
+	in = fopen(argv[file_i], "rb");
 	gzFilet out = gz_opent("w");
 
-	int i;
-	clock_t start = clock(), diff;
-	for (i = 0; i < ROUNDS; i++) {
-		fseek(in, 0, SEEK_SET);
-		deflateReset(&(out->strm));
-		gz_compress(in, out, taint, n + 2);		
+	int i, t;
+	clock_t start, diff;
+
+	for (t = 0; t < TRIALS; t++) {
+    	start = clock(), diff;
+    	for (i = 0; i < ROUNDS; i++) {
+    		fseek(in, 0, SEEK_SET);
+    		deflateReset(&(out->strm));
+    		gz_compress(in, out, taint, n + 2);		
+    	}
+    	diff = clock() - start;
 	}
-	diff = clock() - start;
-	printf("Time taken %d microseconds\n", diff);
+
+	for (t = 0; t < TRIALS; t++) {
+    	start = clock(), diff;
+    	for (i = 0; i < ROUNDS; i++) {
+    		fseek(in, 0, SEEK_SET);
+    		deflateReset(&(out->strm));
+    		gz_compress(in, out, taint, n + 2);		
+    	}
+    	diff = clock() - start;
+    	printf("%d,", diff/ROUNDS);
+	}
 
 	// Cleanup
 	deflateEnd(&(out->strm));
