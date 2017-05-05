@@ -3,6 +3,7 @@
 #include <string.h>
 #include <time.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define BUFLEN 16384
 #define MAX_NAME_LEN 1024

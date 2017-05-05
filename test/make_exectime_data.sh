@@ -7,12 +7,15 @@ fi
 
 if [[ -z $2 ]]; then
 	echo "Need stream format"
+	echo "\"b\" for byte ranges, \"t\" for tokens"
 	exit 1
 fi
 
+
 rm input/*
-for har_file in /home/brandon/thesis/test_data/$1/$1*.har; do
-	python har2docs.py -a -s $har_file input $1
-done
+for 
+    for har_file in /home/brandon/thesis/test_data/$1/$1*.har; do
+    	python har2docs.py -a -s $har_file input $1
+    done
 
 python make_test_cases.py -$2

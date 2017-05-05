@@ -1,7 +1,4 @@
 """
-A script to make the the defs.h file for used by the benchtime.c program.
-This script makes a C program that declares a static array of all the
-input arguments necessary to run benchtime.c.
 """
 import os, mmap, re
 from collections import defaultdict

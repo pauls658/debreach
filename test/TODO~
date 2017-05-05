@@ -1,8 +1,0 @@
-- Test the case where the taint array is empty: [0, 0]
-- Test case where no taint strings are given to apache mod
-- Test case where no get_byte_ranges doesn't find anything
-- alter fill_window() to update the next_taint array
-- Maybe only alloc next_taint when we need it
-- right now: figure out why validation fails. Probably just because window is shifted, but should confirm
-	- Change input taint array to ints, so we can have negative byte ranges
-	- update fill_window() to shift next_taint and update byte ranges

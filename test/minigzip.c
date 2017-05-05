@@ -486,7 +486,6 @@ void file_compress(file, mode)
     }
     gz_compress(in, out);
 
-    unlink(file);
 }
 
 
@@ -539,7 +538,6 @@ void file_uncompress(file)
 
     gz_uncompress(in, out);
 
-    unlink(infile);
 }
 
 

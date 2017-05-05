@@ -2566,6 +2566,8 @@ local uInt longest_match_debreach(s, cur_match)
     } else {
       strend = s->window + taint[0];
       max_match = taint[0] - s->strstart;
+	  if (max_match <= nice_match)
+		  nice_match = max_match;
 #ifdef BDEBUG
       fprintf(stderr, "Stopping strend at %d, max_match: %d\n", taint[0], max_match);
 #endif
