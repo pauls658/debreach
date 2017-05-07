@@ -1,0 +1,17 @@
+Output rate tests (AKA execution time tests)
+--------------------------------------------
+1) Make the test case header files using the make_test_case_def.py script. For token tainted byte ranges, run:
+python make_test_case_def.py -b
+For a list of the available output options run:
+python make_test_case_def.py -h
+The 'streams' directory should now be populated with C header files.
+
+2) Compile the test case executables with make_test_execs.sh. This script compiles the header files in the 'streams' directory with the method name given as an argument. For token tainted byte ranges, run:
+./make_test_execs.sh br
+Other options are 'randombr' and '*' for random byte ranges and all methods, respectively.
+The 'test_executables' directory should now be populated with the test executables.
+
+3) Run the tests with exectime_test.sh. This script takes the method name followed by the number of iterations to run for each executable. For token tainted byte ranges, run:
+./exectime_test.sh br 60
+Where 60 is the number of iterations run over each data stream.
+The 'results' directory will now be populated with CSV's. Each executable will have a CSV in this directory that is named after the executable. Each CSV will contain a single row of values where each value is the execution time of a single iteration from the executable. If exectime_test.sh was run with 60 iterations (as in the above command), each CSV will have a row of 60 values.

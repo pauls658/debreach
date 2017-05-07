@@ -17,8 +17,8 @@ INC=0.1
 #def test_case_line(filename, arg):
         #return " %s %s/%s\n" % (','.join("%d,%d" % (start, end) for start, end in arg), INPUT, filename)
 
-# .0025 gives us 400 chunks
-CHUNK_PROP = 0.0025
+# .001 gives us 1000 chunks
+CHUNK_PROP = 0.001
 def random_brs(file_size, coverage):
     if coverage >= 1.0:
         return [(0, file_size - 1)] 
@@ -26,6 +26,9 @@ def random_brs(file_size, coverage):
         return [(0,0)]
 
     chunk_size = int(math.ceil(file_size*CHUNK_PROP))
+    if chunk_size < 20:
+        chunk_size = 20
+
     chunks = xrange(0, file_size, chunk_size)
     start_bytes = sorted(random.sample(chunks, int(math.ceil(coverage*len(chunks)))))
     brs = []

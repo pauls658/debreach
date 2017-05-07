@@ -2,9 +2,22 @@
 
 echo "REMEMBER TO EXECUTE WITH \"nice -n -20\""
 
-SETS=1
-TIME="date +%s%N"
+if [[ -z $1 ]]; then
+	echo "Need method: {br, randombr, *}"
+	echo "usage: ./exectime_test.sh <method> <iterations>"
+	exit 1
+fi
 
+if [[ -z $2 ]]; then
+	echo "Need number of iterations to run for each executable"
+	echo "usage: ./exectime_test.sh <method> <iterations>"
+	exit 1
+fi
+
+METHOD=$1
+SETS=$2
+
+# not currently used in this script
 sites="reddit
 facebook
 wikipedia
@@ -12,19 +25,7 @@ gmail
 phpmyadmin
 crafted"
 
-for site in $sites; do
-	streams="stream_$site\\_*"
-	for test_stream in $streams; do
-		echo $test_stream
-		sleep 1
-		res=""
-		for ((i=0;i<$SETS;i++)); do
-			#echo $line
-			s=$( $TIME )
-			./compress_stream.sh $test_stream
-			res="$res,$[$( $TIME ) - $s]"
-		done
-		res="$(du -b -d1 input | grep -oE [0-9]*)$res"
-		echo $res > $test_stream\\_res
-	done
+for test_exec in $( ls test_executables/stream_$METHOD\_* ); do
+	res_file=${test_exec//*\//}
+	./$test_exec $SETS > results/$res_file
 done

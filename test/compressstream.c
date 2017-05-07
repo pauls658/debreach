@@ -1,10 +1,11 @@
 #include "zlib.h"
-#include "streams/stream_br_crafted.h"
+#include "streams/stream_br_wikipedia.h"
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #define BUFLEN 16384
 #define MAX_NAME_LEN 1024
@@ -159,6 +160,8 @@ extern char * const in_files[];
 extern int const arg[];
 extern int const arg_len[];
 
+#define BILLION 1000000000L
+
 int main(int argc, char *argv[]) 
 {
 	if (argc != 2) {
@@ -170,10 +173,13 @@ int main(int argc, char *argv[])
 	//
 	FILE *in;
 	gzFilet out = gz_opent("w");
+	struct timespec start, end;
+	long diff;
 
 	for (int iter = 0; iter < iters; iter++) {
     	const int *arg_ptr = arg;
     	int test_num = 0;
+		clock_gettime(CLOCK_MONOTONIC, &start);
     	for (test_num = 0; test_num < NUM_TEST_CASES; test_num++) {
     		//fprintf(stderr, "file %s\n", in_files[test_num]);
     		in = fopen(in_files[test_num], "rb");
@@ -186,6 +192,9 @@ int main(int argc, char *argv[])
     		}
 			fclose(in);
     	}
+		clock_gettime(CLOCK_MONOTONIC, &end);
+		diff = BILLION * (end.tv_sec - start.tv_sec) + end.tv_nsec - start.tv_nsec;
+		printf("%llu,", (long long unsigned int) diff);
 	}
 
 	return 0;
