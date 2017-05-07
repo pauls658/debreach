@@ -57,11 +57,11 @@ def get_all_tokens():
     return all_tokens
 
 def make_zlib_test_cases(options, in_dir):
-    print "TODO: make_zlib_test_cases"
+    print "Not in this repo"
     exit(1)
 
 def make_token_test_cases(options, in_dir):
-    print "TODO: make_token_test_cases"
+    print "In the blib-best repo"
     exit(1)
 
 def find_byte_ranges(input_file, tokens):
@@ -188,5 +188,5 @@ if __name__ == "__main__":
     elif options.zlib:
         make_zlib_test_cases(options, INPUT)
     else:
-        parse.error("need an option")
+        parser.error("need an option")
         exit(1)

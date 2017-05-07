@@ -38,6 +38,11 @@ typedef struct gzFile_st {
     z_stream strm;
 } *gzFilet;
 
+void error(const char *err) {
+    printf("error\n");
+    exit(1);
+}
+
 const char *gzerrort(gz, err)
     gzFilet gz;
     int *err;
@@ -108,33 +113,6 @@ gzFilet gz_opent(mode)
     return gz;
 }
 
-void gz_compress(in, out, brs, taint_len)
-    FILE   *in;
-    gzFilet out;
-	int *brs;
-	unsigned int taint_len;
-{
-    local char buf[BUFLEN];
-    int len;
-    int err;
-
-
-	if (brs != NULL)
-		taint_brs(&(out->strm), brs, taint_len);
-
-    for (;;) {
-        len = (int)fread(buf, 1, sizeof(buf), in);
-        if (ferror(in)) {
-            perror("fread");
-            exit(1);
-        }
-        if (len == 0) break;
-
-        if (gzwritet(out, buf, (unsigned)len, NULL) != len) error(gzerrort(out, &err));
-    }
-    //fclose(in);
-    if (gzcloset(out) != Z_OK) error("failed gzclose");
-}
 
 int gzwritet(gz, buf, len)
     gzFilet gz;
@@ -155,6 +133,34 @@ int gzwritet(gz, buf, len)
     } while (strm->avail_out == 0);
     return len;
 }
+
+void gz_compress(in, out, brs, taint_len)
+    FILE   *in;
+    gzFilet out;
+	int *brs;
+	unsigned int taint_len;
+{
+    local char buf[BUFLEN];
+    int len;
+    int err;
+
+	if (brs != NULL)
+		taint_brs(&(out->strm), brs, taint_len);
+
+    for (;;) {
+        len = (int)fread(buf, 1, sizeof(buf), in);
+        if (ferror(in)) {
+            perror("fread");
+            exit(1);
+        }
+        if (len == 0) break;
+
+        if (gzwritet(out, buf, (unsigned)len) != len) error(gzerrort(out, &err));
+    }
+    //fclose(in);
+    if (gzcloset(out) != Z_OK) error("failed gzclose");
+}
+
 
 extern char * const in_files[];
 extern int const arg[];
