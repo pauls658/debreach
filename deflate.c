@@ -51,7 +51,8 @@
 
 #include "deflate.h"
 
-#if defined(BDEBUG) || defined(DEBUG_WINDOW)
+#define VDEBUG 1
+#if defined(BDEBUG) || defined(DEBUG_WINDOW) || defined(VDEBUG)
 #include <stdio.h>
 #endif
 
@@ -1869,6 +1870,10 @@ int ZEXPORT taint_brs(strm, brs, len)
 	int *brs;
 	unsigned int len;
 {
+	if (len == 0) {
+		return 0;
+	}
+
 	deflate_state *state = strm->state;
 	int *temp = state->tainted_brs;
 	unsigned int cur_size = 0;
@@ -1897,15 +1902,53 @@ int ZEXPORT taint_brs(strm, brs, len)
 		state->cur_taint = state->tainted_brs + cur_taint_i;
 	}
 
+	// convert the given byte ranges to future window indexes
+	// add on the amount of stuff in the window
+	// strstart is how many bytes are in the dictionary
+	// lookahead is number of bytes in lookahead
 	unsigned int i = 0;
+	int offset = (int) (state->strstart + state->lookahead);
 	for(i = 0; i < len; i++) {
-		state->tainted_brs[cur_size + i] = brs[i];
+		state->tainted_brs[cur_size + i] = brs[i] + offset;
 	}
 
 	return 0;
 }
 
 #endif
+
+#ifdef VDEBUG                                                                            
+local void write_buf_chunks(FILE *fd, char *buf, int *brs, int total_in, int buf_len) {        
+	if (brs == NULL)
+		return;
+
+    char *sep_start = "\n#################### (";                                        
+    char *sep_end = ") ##################\n";                                            
+    int *temp = brs;                                                                     
+    int len;                                                                             
+
+//    fwrite((void *) sep_start, 1, strlen(sep_start), fd);                            
+//	  fprintf(fd, "br[0]=%d buf_len=%d\n", brs[0], buf_len);
+//    fwrite((void *) sep_end, 1, strlen(sep_end), fd);                                
+
+    while(!(*temp == 0 && *(temp + 1) == 0)) {                                           
+        len = *(temp + 1) - *temp + 1;                                                   
+		if (*(temp + 1) > buf_len) {
+        	fwrite((void *) sep_start, 1, strlen(sep_start), fd);                            
+        	fprintf(fd, "%d-%d total_in=%d len=%d", *temp, *(temp + 1), total_in, buf_len);  
+        	fwrite((void *) sep_end, 1, strlen(sep_end), fd);                                
+        	temp += 2;                                                                       
+			continue;
+		}
+        fwrite((void*) buf + *temp, 1, len, fd);                                         
+        fwrite((void *) sep_start, 1, strlen(sep_start), fd);                            
+        fprintf(fd, "%d-%d total_in=%d len=%d", *temp, *(temp + 1), total_in, buf_len);  
+        fwrite((void *) sep_end, 1, strlen(sep_end), fd);                                
+        temp += 2;                                                                       
+    }                                                                                    
+}                                                                                        
+#endif                                                                                   
+
 /* ===========================================================================
  * Fill the window when the lookahead becomes insufficient.
  * Updates strstart and lookahead.
@@ -2024,6 +2067,13 @@ local void fill_window(s)
 
         n = read_buf(s->strm, s->window + s->strstart + s->lookahead, more);
         s->lookahead += n;
+#ifdef VDEBUG
+		char *tainted_str_file = "/tmp/debreach_validation/compressor_tainted_strs";
+		FILE *debug_file = fopen(tainted_str_file, "a+");
+		//write_buf_chunks(NULL, NULL, NULL, 0, 0);
+		write_buf_chunks(debug_file, (char *) s->window, s->tainted_brs, (int) s->strm->total_in, (int) (s->strstart + s->lookahead));
+		fclose(debug_file);
+#endif
 
         /* Initialize the hash value now that we have some input: */
         if (s->lookahead + s->insert >= MIN_MATCH) {
