@@ -1054,16 +1054,19 @@ static apr_status_t deflate_out_filter(ap_filter_t *f,
                                                       * trust zlib */
         ctx->stream.avail_in = len;
 
+
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(01386)
+        	"Debreach called");
 		char *val = (char *) apr_table_get(r->notes, DEBREACH_KEY);
 		if (val != NULL) {
 
             ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(01386)
             	"Debreach brs string: %s", val);
 			int *brs;
-			int brs_len = string_to_debreach_array(r, val, &brs);
+			unsigned int brs_len = (unsigned int) string_to_debreach_array(r, val, &brs);
 			if (brs_len != 0) {
 				align_brs(r, &(ctx->stream), brs);
-				taint_brs(&(ctx->stream), brs, len);
+				taint_brs(&(ctx->stream), brs, brs_len);
 			}
 			apr_table_unset(r->notes, DEBREACH_KEY);
 #ifdef VDEBUG
