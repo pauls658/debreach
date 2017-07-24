@@ -10,9 +10,9 @@ TOKENS_DIR="tokens"
 TOKEN_RE_FILE = "test_data/token_res" 
 
 site_REs = {}
-for line in open(TOKEN_RE_FILE, 'rb'):
-    site, regex = line.strip().split(' ', 1)
-    site_REs[site] = re.compile(regex)
+#for line in open(TOKEN_RE_FILE, 'rb'):
+#    site, regex = line.strip().split(' ', 1)
+#    site_REs[site] = re.compile(regex)
 
 def validate_validation():
     clear_dirs()
@@ -265,6 +265,7 @@ def random_test():
         ret = os.system('../minidebreach -b ' + br_arg + ' ' + INPUT_DIR + '/' + in_file + ' 2> debug/' + in_file)
         if ret != 0:
             print "Error: non-zero exit status from minidebreach"
+            print ret
             exit(1)
         
         shutil.move(INPUT_DIR + '/' + in_file + '.gz', 'output/' + in_file + '.gz')

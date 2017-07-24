@@ -18,7 +18,7 @@
 
 CC=gcc
 
-CFLAGS=-O3 -Wstrict-prototypes -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -DDEBREACH
+CFLAGS=-O3 -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -DDEBREACH -DVALIDATE_SEC -DPOSTINC
 #CFLAGS=-O -DMAX_WBITS=14 -DMAX_MEM_LEVEL=7
 #CFLAGS=-g -DDEBUG
 #CFLAGS=-O3 -Wall -Wwrite-strings -Wpointer-arith -Wconversion \
@@ -26,7 +26,8 @@ CFLAGS=-O3 -Wstrict-prototypes -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -DDEBREACH
 compressstream=-O3
 singlefile=-O3
 
-SFLAGS=-O3 -Wstrict-prototypes -fPIC -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -DDEBREACH
+SFLAGS=-O3 -fPIC -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -DDEBREACH -DVALIDATE_SEC -DPOSTINC
+
 
 LDFLAGS= 
 TEST_LDFLAGS=-L. libz.a
@@ -75,7 +76,7 @@ PIC_OBJS = $(PIC_OBJC) $(PIC_OBJA)
 
 all: static shared all64
 
-static: example$(EXE) minigzip$(EXE) minidebreach$(EXE) compressstream$(EXE) singlefile$(EXE)
+static: example$(EXE) minigzip$(EXE) minidebreach$(EXE) 
 
 shared: examplesh$(EXE) minigzipsh$(EXE)
 

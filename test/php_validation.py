@@ -7,7 +7,7 @@ from StringIO import StringIO
 
 class TestCase(object):
     DEBREACH_FNC = "d_echo"
-    APACHE_DIR = "/var/www/html"
+    APACHE_DIR = "/usr/local/apache2/htdocs"
     SERVER_ROOT = "debreach_validation"
     SERVER_NAME = "localhost"
     TMP_DIR = "/tmp" + "/" + SERVER_ROOT
@@ -37,6 +37,16 @@ class TestCase(object):
         self.brs_file = None
         # files to delete when we are done
         self.created_files = []
+
+        self.debug_tainted_data()
+
+    def debug_tainted_data(self):
+        buf = open(self.data_file, "rb").read()
+        with open(self.TMP_DIR + "/tainted_data", "wb+") as out_fd:
+            for i in range(0,len(self.brs), 2):
+                out_fd.write(buf[self.brs[i]:self.brs[i+1]+1])
+                out_fd.write("\n############################ ( %d - %d ) #########################\n" % (self.brs[i], self.brs[i+1]))
+
 
     def run(self):
         self.make_php_file()
@@ -165,6 +175,12 @@ class TestCase(object):
                 fd.write("%s: %s\n" % (header, value))
         self.created_files.append(self.response_fp + ".headers")
 
+    @staticmethod
+    def php_lit_string(string):
+        return "'" + \
+                string.replace("\\", "\\\\").replace("'", "\\'") + \
+                "'"
+
     def make_php_file(self):
         self.php_fp = TestCase.APACHE_DIR + "/" + self.resource_path
         file_buf = open(self.data_file, "rb").read()
@@ -175,19 +191,19 @@ class TestCase(object):
             for i in range(len(self.brs)):
                 end = self.brs[i]
                 if tainted:
-                    out_fd.write(TestCase.DEBREACH_FNC + "(\"" +\
-                            file_buf[start:end+1].replace("\\", "\\\\").replace("\"", "\\\"") +\
-                            "\");\n")
+                    out_fd.write(TestCase.DEBREACH_FNC + "(" + \
+                            self.php_lit_string(file_buf[start:end+1]) + \
+                            ");\n")
                 else:
                     # file_buf[end] is tainted
-                    out_fd.write("echo \"" +\
-                            file_buf[start:end].replace("\\", "\\\\").replace("\"", "\\\"") +\
-                            "\";\n")
+                    out_fd.write("echo " + \
+                            self.php_lit_string(file_buf[start:end]) + \
+                            ";\n")
                 start = end + 1
                 tainted = not tainted
             # finish it off
-            out_fd.write("echo \"" +\
-                    file_buf[start:len(file_buf)].replace("\\", "\\\\").replace("\"", "\\\"") + "\";\n")
+            out_fd.write("echo " + \
+                    self.php_lit_string(file_buf[start:len(file_buf)]) + ";\n")
             out_fd.write("?>")
         self.created_files.append(self.php_fp)
                 

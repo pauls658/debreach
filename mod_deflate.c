@@ -1069,13 +1069,7 @@ static apr_status_t deflate_out_filter(ap_filter_t *f,
 				taint_brs(&(ctx->stream), brs, brs_len);
 			}
 			apr_table_unset(r->notes, DEBREACH_KEY);
-#ifdef VDEBUG
-		char *all_of_it_path = "/tmp/debreach_validation/all_of_it";
-		FILE *fd = fopen(all_of_it_path, "a+");
-		fwrite(ctx->stream.next_in, 1, len, fd);
-		fprintf(fd, "\n##############( %d bytes hi )#############\n", (apr_size_t) len);
-		fclose(fd);
-#endif
+
 #ifdef VDEBUG
     		char *tainted_str_file = "/tmp/debreach_validation/mod_debreach_strs";
     		FILE *debug_file = fopen(tainted_str_file, "a+");
@@ -1085,6 +1079,13 @@ static apr_status_t deflate_out_filter(ap_filter_t *f,
 
 		}
 
+#ifdef VDEBUG
+		char *all_of_it_path = "/tmp/debreach_validation/all_of_it";
+		FILE *fd = fopen(all_of_it_path, "a+");
+		fwrite(ctx->stream.next_in, 1, len, fd);
+		fprintf(fd, "\n##############( %d bytes hi )#############\n", (apr_size_t) len);
+		fclose(fd);
+#endif
 
         while (ctx->stream.avail_in != 0) {
             if (ctx->stream.avail_out == 0) {

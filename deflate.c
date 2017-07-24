@@ -1868,7 +1868,7 @@ int ZEXPORT declare_unsafe(strm, unsafe)
 int ZEXPORT taint_brs(strm, brs, len)
 	z_streamp strm;
 	int *brs;
-	unsigned int len;
+	unsigned len;
 {
 	if (len == 0) {
 		return 0;
@@ -1933,6 +1933,8 @@ local void write_buf_chunks(FILE *fd, char *buf, int *brs, int total_in, int buf
 
     while(!(*temp == 0 && *(temp + 1) == 0)) {                                           
         len = *(temp + 1) - *temp + 1;                                                   
+		if (len < 0)
+			continue;
 		if (*(temp + 1) > buf_len) {
         	fwrite((void *) sep_start, 1, strlen(sep_start), fd);                            
         	fprintf(fd, "%d-%d total_in=%d len=%d", *temp, *(temp + 1), total_in, buf_len);  
@@ -2978,6 +2980,8 @@ if (s->strstart >= s->cur_taint[0] && s->strstart <= s->cur_taint[1]) {
          */
         if (s->prev_length >= MIN_MATCH && s->match_length <= s->prev_length) {
             uInt max_insert = s->strstart + s->lookahead - MIN_MATCH;
+			if (max_insert > (unsigned int) (s->cur_taint[0] - MIN_MATCH))
+				max_insert = (unsigned int) (s->cur_taint[0] - MIN_MATCH);
             /* Do not insert strings in hash table beyond this. */
 
             check_match(s, s->strstart-1, s->prev_match, s->prev_length);
@@ -3001,9 +3005,9 @@ if (s->strstart >= s->cur_taint[0] && s->strstart <= s->cur_taint[1]) {
 					fprintf(stderr, "%c", s->window[s->strstart]);
 #endif
                     INSERT_STRING(s, s->strstart, hash_head);
-	 	    		s->next_taint[s->strstart] = (s->cur_taint[0] - s->strstart > MAX_MATCH) ?
-													-1 : s->cur_taint[0] - s->strstart ;
                 }
+	 	    	s->next_taint[s->strstart] = (s->cur_taint[0] - s->strstart > MAX_MATCH) ?
+												-1 : s->cur_taint[0] - s->strstart ;
             } while (--s->prev_length != 0);
 #ifdef DEBUG_OUT
 					fprintf(stderr, "\n");
