@@ -1913,8 +1913,8 @@ int ZEXPORT taint_brs(strm, brs, len)
 	}
 	// fix the null term
 	// TODO: get rid of null term
-	state->tainted_brs[len - 2] = 0;
-	state->tainted_brs[len - 1] = 0;
+	state->tainted_brs[cur_size + len - 2] = 0;
+	state->tainted_brs[cur_size + len - 1] = 0;
 
 	return 0;
 }
