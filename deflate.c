@@ -1911,6 +1911,10 @@ int ZEXPORT taint_brs(strm, brs, len)
 	for(i = 0; i < len; i++) {
 		state->tainted_brs[cur_size + i] = brs[i] + offset;
 	}
+	// fix the null term
+	// TODO: get rid of null term
+	state->tainted_brs[len - 2] = 0;
+	state->tainted_brs[len - 1] = 0;
 
 	return 0;
 }
