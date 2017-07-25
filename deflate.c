@@ -1933,9 +1933,24 @@ int ZEXPORT taint_brs(strm, brs, len)
 			needs_update = 0;
 		else
 			needs_update = (unsigned int) (state->tainted_brs[cur_size] - MAX_MATCH);
+
 		while (needs_update < state->strstart) {
-			state->next_taint[needs_update] = state->tainted_brs[cur_size] - needs_update;
-			needs_update++;
+			if (state->next_taint[needs_update] <= MAX_MATCH && // we were previously in
+																// match range of a tainted
+																// zone
+				state->next_taint[needs_update] <=			  // the previous tainted zone 
+				state->tainted_brs[cur_size] - needs_update) {// is closer than the closest
+															  // new tainted zone
+				// Don't want to overwrite this
+				needs_update += (unsigned short) state->next_taint[needs_update];
+				// move out of the taint
+				while (state->next_taint[needs_update] == 0 && needs_update < state->strstart)
+					needs_update++;
+			} else {
+				// Update the next_taint value
+				state->next_taint[needs_update] = state->tainted_brs[cur_size] - needs_update;
+				needs_update++;
+			}
 		}
 	}
 
