@@ -1916,6 +1916,29 @@ int ZEXPORT taint_brs(strm, brs, len)
 	state->tainted_brs[cur_size + len - 2] = 0;
 	state->tainted_brs[cur_size + len - 1] = 0;
 
+	// if the the next_taint info for some window index *i* was set while we had less
+	// than MAX_MATCH bytes of lookahead, it's possible that next_taint[i] is no longer
+	// valid because some of the new lookahead may be tainted. Check if this is the case
+	// and update accordingly.
+	// tainted_brs[cur_size] is beginning of the next new tainted region.
+	//
+	// First a sanity check
+	if ((unsigned int) state->tainted_brs[cur_size] < state->strstart) {
+		// A new tainted region appears in a content we've alread processed
+		// TODO: handle this gracefully or throw an error or something
+	} else {
+		unsigned int needs_update;
+		if (state->tainted_brs[cur_size] < MAX_MATCH) 
+			// only happens when window has never been shifted
+			needs_update = 0;
+		else
+			needs_update = (unsigned int) (state->tainted_brs[cur_size] - MAX_MATCH);
+		while (needs_update < state->strstart) {
+			state->next_taint[needs_update] = state->tainted_brs[cur_size] - needs_update;
+			needs_update++;
+		}
+	}
+
 	return 0;
 }
 
