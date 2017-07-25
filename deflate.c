@@ -2089,7 +2089,7 @@ local void fill_window(s)
 #if MIN_MATCH != 3
             Call UPDATE_HASH() MIN_MATCH-3 more times
 #endif
-            while (s->insert) {
+            while (s->insert) { // INSERT_STRING basically
                 UPDATE_HASH(s, s->ins_h, s->window[str + MIN_MATCH-1]);
 #ifndef FASTEST
                 s->prev[str & s->w_mask] = s->head[s->ins_h];
@@ -2860,9 +2860,11 @@ local block_state deflate_debreach(s, flush)
 		* between s->strstart .. s->strstart + MIN_MATCH
 		* Note: if the match at the previous step 
 	  	*/
-		if (!(s->cur_taint[0] == 0 && s->cur_taint[1] == 0) &&
-			(s->strstart + MIN_MATCH - 1 >= s->cur_taint[0] || s->cur_taint[0] < 0) 
-			&& s->strstart <= s->cur_taint[1]) {
+		if (!(s->cur_taint[0] == 0 && s->cur_taint[1] == 0) && // check we aren't at the end
+			(s->strstart + MIN_MATCH - 1 >= s->cur_taint[0] // check we are past the beginning
+			 || s->cur_taint[0] < 0) &&
+			s->strstart <= s->cur_taint[1]) { // check we are before the end
+
 	    	uInt advance = s->cur_taint[1] - s->strstart + 1;
 		    if (advance > s->lookahead) {
 				advance = s->lookahead;
@@ -3056,7 +3058,17 @@ if (s->strstart >= s->cur_taint[0] && s->strstart <= s->cur_taint[1]) {
 #endif
         s->match_available = 0;
     }
-    s->insert = s->strstart < MIN_MATCH-1 ? s->strstart : MIN_MATCH-1;
+
+	// s->insert indicates the number of strings previous to s->strstart to insert
+	// into the lookup table when fill_window() is called.
+	
+    //s->insert = s->strstart < MIN_MATCH-1 ? s->strstart : MIN_MATCH-1;
+	s->insert = 0;
+
+	// if we broke out of the main loop, it's because lookahead == 0. We might be able
+	// to ensure that some safe strings can be inserted into the lookup table, but I'm 
+	// leaving that as TODO for now.
+
     if (flush == Z_FINISH) {
         FLUSH_BLOCK(s, 1);
         return finish_done;
