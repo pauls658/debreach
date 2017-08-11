@@ -18,16 +18,15 @@
 
 CC=gcc
 
-CFLAGS=-O3 -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -DDEBREACH -DVALIDATE_SEC -DPOSTINC
+CFLAGS=-O0 -g -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -DDEBREACH
 #CFLAGS=-O -DMAX_WBITS=14 -DMAX_MEM_LEVEL=7
 #CFLAGS=-g -DDEBUG
 #CFLAGS=-O3 -Wall -Wwrite-strings -Wpointer-arith -Wconversion \
 #           -Wstrict-prototypes -Wmissing-prototypes
-compressstream=-O3
-singlefile=-O3
+compressstream=-O0 -g 
+singlefile=-O0 -g
 
-SFLAGS=-O3 -fPIC -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -DDEBREACH -DVALIDATE_SEC -DPOSTINC
-
+SFLAGS=-O0 -g -fPIC -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -DDEBREACH
 
 LDFLAGS= 
 TEST_LDFLAGS=-L. libz.a
@@ -76,8 +75,7 @@ PIC_OBJS = $(PIC_OBJC) $(PIC_OBJA)
 
 all: static shared all64
 
-static: example$(EXE) minigzip$(EXE) minidebreach$(EXE) 
-
+static: example$(EXE) minigzip$(EXE) minidebreach$(EXE)
 shared: examplesh$(EXE) minigzipsh$(EXE)
 
 all64: example64$(EXE) minigzip64$(EXE)
@@ -153,12 +151,6 @@ minigzip.o: test/minigzip.c zlib.h zconf.h
 minidebreach.o: test/minidebreach.c zlib.h zconf.h
 	$(CC) $(CFLAGS) -g -I. -c -o $@ test/minidebreach.c
 
-compressstream.o: test/compressstream.c zlib.h zconf.h
-	$(CC) $(compressstream) -I. -c -o $@ test/compressstream.c
-
-singlefile.o: test/singlefile.c zlib.h zconf.h
-	$(CC) $(singlefile) -I. -c -o $@ test/singlefile.c
-
 minidebreach-stored.o: test/minidebreach-stored.c zlib.h zconf.h
 	$(CC) $(CFLAGS) -g -I. -c -o $@ test/minidebreach-stored.c
 
@@ -193,12 +185,6 @@ examplesh$(EXE): example.o $(SHAREDLIBV)
 
 minidebreach$(EXE): minidebreach.o $(STATICLIB)
 	$(CC) $(CFLAGS) -g -o $@ minidebreach.o $(TEST_LDFLAGS)
-
-compressstream$(EXE): compressstream.o $(STATICLIB)
-	$(CC) $(compressstream) -o $@ compressstream.o $(TEST_LDFLAGS)
-
-singlefile$(EXE): singlefile.o $(STATICLIB)
-	$(CC) $(singlefile) -o $@ singlefile.o $(TEST_LDFLAGS)
 
 minidebreach-stored$(EXE): minidebreach-stored.o $(STATICLIB)
 	$(CC) $(CFLAGS) -g -o $@ minidebreach-stored.o $(TEST_LDFLAGS)

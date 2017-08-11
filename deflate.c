@@ -1723,7 +1723,7 @@ local void check_match(s, start, match, length)
 #endif /* DEBUG */
 
 //#if defined(BDEBUG) || defined(DEBUG_WINDOW)
-#if 1
+#if 0
 
 #include <stdio.h>
 void print_taint_array(s, out) 
@@ -1781,9 +1781,7 @@ int ZEXPORT declare_unsafe(strm, unsafe)
 	deflate_state *s = strm->state;
 	int *brs = s->tainted_brs;
 
-#ifdef DEBUG_UNSAFE
-	fprintf(stderr, "declare_unsafe: called\n");
-#endif
+
 	// advance to end of taint array
 	while (!(brs[br_i] == 0 && brs[br_i + 1] == 0)) {
 		br_i += 2;
@@ -1814,10 +1812,7 @@ int ZEXPORT declare_unsafe(strm, unsafe)
 				match_len++;
 			}
 			if (match == 1 && match_len > 0) {
-#ifdef DEBUG_UNSAFE
-				fprintf(stderr, "match: %s\n", unsafe_str);
-				fprintf(stderr, "buf_i: %u\n", buf_i);
-#endif
+
 				// Either we reached the end of an unsafe string, or we reached the end of the
 				// buffer. In both cases, add the byte range
 				
@@ -1845,10 +1840,7 @@ int ZEXPORT declare_unsafe(strm, unsafe)
 		}
 		buf_i += 1;
 	}
-#ifdef DEBUG_UNSAFE
-	fprintf(stderr, "declare_unsafe: new taint array: ");
-	print_taint_array(s, stderr);	
-#endif
+
 	if (br_i == 0) {
 		return 0;
 	} else {
@@ -1959,39 +1951,7 @@ int ZEXPORT taint_brs(strm, brs, len)
 
 #endif
 
-#ifdef VDEBUG                                                                            
-local void write_buf_chunks(FILE *fd, char *buf, int *brs, int total_in, int buf_len) {        
-	if (brs == NULL)
-		return;
-
-    char *sep_start = "\n#################### (";                                        
-    char *sep_end = ") ##################\n";                                            
-    int *temp = brs;                                                                     
-    int len;                                                                             
-
-//    fwrite((void *) sep_start, 1, strlen(sep_start), fd);                            
-//	  fprintf(fd, "br[0]=%d buf_len=%d\n", brs[0], buf_len);
-//    fwrite((void *) sep_end, 1, strlen(sep_end), fd);                                
-
-    while(!(*temp == 0 && *(temp + 1) == 0)) {                                           
-        len = *(temp + 1) - *temp + 1;                                                   
-		if (len < 0)
-			continue;
-		if (*(temp + 1) > buf_len) {
-        	fwrite((void *) sep_start, 1, strlen(sep_start), fd);                            
-        	fprintf(fd, "%d-%d total_in=%d len=%d", *temp, *(temp + 1), total_in, buf_len);  
-        	fwrite((void *) sep_end, 1, strlen(sep_end), fd);                                
-        	temp += 2;                                                                       
-			continue;
-		}
-        fwrite((void*) buf + *temp, 1, len, fd);                                         
-        fwrite((void *) sep_start, 1, strlen(sep_start), fd);                            
-        fprintf(fd, "%d-%d total_in=%d len=%d", *temp, *(temp + 1), total_in, buf_len);  
-        fwrite((void *) sep_end, 1, strlen(sep_end), fd);                                
-        temp += 2;                                                                       
-    }                                                                                    
-}                                                                                        
-#endif                                                                                   
+                                                                                   
 
 /* ===========================================================================
  * Fill the window when the lookahead becomes insufficient.
@@ -2012,9 +1972,7 @@ local void fill_window(s)
     uInt wsize = s->w_size;
 
     Assert(s->lookahead < MIN_LOOKAHEAD, "already enough lookahead");
-#ifdef DEBUG_WINDOW
-	fprintf(stderr, "fill_window: called\n");
-#endif
+
     do {
         more = (unsigned)(s->window_size -(ulg)s->lookahead -(ulg)s->strstart);
 
@@ -2035,9 +1993,7 @@ local void fill_window(s)
          * move the upper half to the lower one to make room in the upper half.
          */
         if (s->strstart >= wsize+MAX_DIST(s)) {
-#ifdef DEBUG_WINDOW
-			fprintf(stderr, "fill_window: window almost full. moving upper half to lower half\n");
-#endif
+
 
             zmemcpy(s->window, s->window+wsize, (unsigned)wsize);
 #ifdef DEBREACH
@@ -2111,13 +2067,7 @@ local void fill_window(s)
 
         n = read_buf(s->strm, s->window + s->strstart + s->lookahead, more);
         s->lookahead += n;
-#ifdef VDEBUG
-		char *tainted_str_file = "/tmp/debreach_validation/compressor_tainted_strs";
-		FILE *debug_file = fopen(tainted_str_file, "a+");
-		//write_buf_chunks(NULL, NULL, NULL, 0, 0);
-		write_buf_chunks(debug_file, (char *) s->window, s->tainted_brs, (int) s->strm->total_in, (int) (s->strstart + s->lookahead));
-		fclose(debug_file);
-#endif
+
 
         /* Initialize the hash value now that we have some input: */
         if (s->lookahead + s->insert >= MIN_MATCH) {
@@ -2179,12 +2129,7 @@ local void fill_window(s)
         }
     }
 
-#ifdef DEBUG_WINDOW
-	fprintf(stderr, "fill_window: current taint array: ");
-	print_taint_array(s, stderr);
-	fprintf(stderr, "fill_window: tainted strs: \n");
-	print_br_strs(s);
-#endif
+
     Assert((ulg)s->strstart <= s->window_size - MIN_LOOKAHEAD,
            "not enough room for search");
 }
@@ -2662,9 +2607,7 @@ local uInt longest_match_debreach(s, cur_match)
       max_match = taint[0] - s->strstart;
 	  if (max_match <= nice_match)
 		  nice_match = max_match;
-#ifdef BDEBUG
-      fprintf(stderr, "Stopping strend at %d, max_match: %d\n", taint[0], max_match);
-#endif
+
     }
     register Byte scan_end1  = scan[best_len-1];
     register Byte scan_end   = scan[best_len];
@@ -2675,10 +2618,7 @@ local uInt longest_match_debreach(s, cur_match)
      */
     Assert(s->hash_bits >= 8 && MAX_MATCH == 258, "Code too clever");
 
-#ifdef BDEBUG
-    fprintf(stderr, "longest_match_debreach\n");
-    fprintf(stderr, "limit: %d\n", limit);
-#endif
+
 
     /* Do not waste too much time if we already have a good match: */
     if (s->prev_length >= s->good_match) {
@@ -2700,9 +2640,7 @@ local uInt longest_match_debreach(s, cur_match)
     do {
         Assert(cur_match < s->strstart, "no future");
         match = s->window + cur_match;
-#ifdef BDEBUG
-		fprintf(stderr, "cur_match = %d, match = %c\n", cur_match, *match);
-#endif
+
 		if (s->next_taint[cur_match] != -1) {
 			if (s->next_taint[cur_match] < MIN_MATCH) continue;
 
@@ -2711,13 +2649,9 @@ local uInt longest_match_debreach(s, cur_match)
 	    		*(scan + s->next_taint[cur_match]))) {
 
 	    		floop = 1;
-#ifdef BDEBUG
-	    		fprintf(stderr, "Flooping index:%d = %c to ", cur_match, s->window[s->next_taint[cur_match] + s->strstart]);
-#endif
+
 	    		s->window[s->next_taint[cur_match] + s->strstart]++;
-#ifdef BDEBUG
-	    		fprintf(stderr, "%c\n", s->window[s->next_taint[cur_match] + s->strstart]);
-#endif
+
 			} else {
 				floop = 0;
 			}
@@ -2740,9 +2674,7 @@ local uInt longest_match_debreach(s, cur_match)
             *(ushf*)match != scan_start) {
 			if (floop == 1) {
 	    		s->window[s->next_taint[cur_match] + s->strstart]--; 
-#ifdef BDEBUG
-	    		fprintf(stderr, "Unflooping to: %c\n", s->window[s->next_taint[cur_match] + s->strstart]); 
-#endif
+
 			}
 			continue;
 		}
@@ -2783,9 +2715,7 @@ local uInt longest_match_debreach(s, cur_match)
             *++match          != scan[1]) {
 			if (floop == 1) {
 	    		s->window[s->next_taint[cur_match] + s->strstart]--; 
-#ifdef BDEBUG
-	    		fprintf(stderr, "Unflooping to: %c\n", s->window[s->next_taint[cur_match] + s->strstart]); 
-#endif
+
 			}
 			continue;
 		}
@@ -2822,9 +2752,7 @@ local uInt longest_match_debreach(s, cur_match)
             if (len >= nice_match) {
 				if (floop == 1) {
 	    			s->window[s->next_taint[cur_match] + s->strstart]--; 
-#ifdef BDEBUG
-	    			fprintf(stderr, "Unflooping to: %c\n", s->window[s->next_taint[cur_match] + s->strstart]); 
-#endif
+
 				}			
 				break;
 			}
@@ -2837,9 +2765,7 @@ local uInt longest_match_debreach(s, cur_match)
         }
 		if (floop == 1) {
 	    	s->window[s->next_taint[cur_match] + s->strstart]--; 
-#ifdef BDEBUG
-	    	fprintf(stderr, "Unflooping to: %c\n", s->window[s->next_taint[cur_match] + s->strstart]); 
-#endif
+
 		}
     } while ((cur_match = prev[cur_match & wmask]) > limit
              && --chain_length != 0);
@@ -2907,15 +2833,7 @@ local block_state deflate_debreach(s, flush)
 		    if (advance > s->lookahead) {
 				advance = s->lookahead;
 	    	} 
-#ifdef BDEBUG
-		    fprintf(stderr, "Advancing: %d\n", advance);
-#endif
-#ifdef WARNINGS
-if (s->strstart >= s->cur_taint[0] && s->strstart <= s->cur_taint[1]) {
-	fprintf(stderr, "Warning: strstart was inside a tainted region. This could be bad.\n");
-	fprintf(stderr, "strstart=%u, s->cur_taint[0]=%u, s->cur_taint[1]=%u\n", s->strstart, s->cur_taint[0], s->cur_taint[1]);
-}
-#endif
+
 			s->match_length = MIN_MATCH - 1;
 			s->prev_length = MIN_MATCH - 1;
 			if (s->match_available) {
@@ -2923,9 +2841,7 @@ if (s->strstart >= s->cur_taint[0] && s->strstart <= s->cur_taint[1]) {
 				// to output, or there could be no match
 				s->match_available = 0;
 				_tr_tally_lit(s, s->window[s->strstart - 1], bflush);
-#ifdef DEBUG_OUT
-				fprintf(stderr, "tally_lit cur: %c\n", s->window[s->strstart - 1]);
-#endif
+
 
             	if (bflush) FLUSH_BLOCK_ONLY(s, 0);
             	if (s->strm->avail_out == 0) {
@@ -2937,9 +2853,7 @@ if (s->strstart >= s->cur_taint[0] && s->strstart <= s->cur_taint[1]) {
 				//not sure why I thought this should be incrememented first
 				//s->strstart++;	
 				_tr_tally_lit(s, s->window[s->strstart], bflush);
-#ifdef DEBUG_OUT
-				fprintf(stderr, "tally_lit adv: %c\n", s->window[s->strstart]);
-#endif
+
 				s->strstart++;	
 				s->lookahead--;
             	if (bflush) {
@@ -2981,9 +2895,7 @@ if (s->strstart >= s->cur_taint[0] && s->strstart <= s->cur_taint[1]) {
          */
         s->prev_length = s->match_length, s->prev_match = s->match_start;
         s->match_length = MIN_MATCH-1;
-#ifdef BDEBUG
-		fprintf(stderr, "hash_head: %d\n", hash_head);
-#endif
+
 
         if (hash_head != NIL && s->prev_length < s->max_lazy_match &&
             s->strstart - hash_head <= MAX_DIST(s)) {
@@ -3038,24 +2950,18 @@ if (s->strstart >= s->cur_taint[0] && s->strstart <= s->cur_taint[1]) {
              * enough lookahead, the last two strings are not inserted in
              * the hash table.
              */
-#ifdef DEBUG_OUT
-			fprintf(stderr, "output match: %c%c", s->window[s->strstart - 1], s->window[s->strstart]);
-#endif
+
             s->lookahead -= s->prev_length-1;
             s->prev_length -= 2;
             do {
                 if (++s->strstart <= max_insert) {
-#ifdef DEBUG_OUT
-					fprintf(stderr, "%c", s->window[s->strstart]);
-#endif
+
                     INSERT_STRING(s, s->strstart, hash_head);
                 }
 	 	    	s->next_taint[s->strstart] = (s->cur_taint[0] - s->strstart > MAX_MATCH) ?
 												-1 : s->cur_taint[0] - s->strstart ;
             } while (--s->prev_length != 0);
-#ifdef DEBUG_OUT
-					fprintf(stderr, "\n");
-#endif
+
             s->match_available = 0;
             s->match_length = MIN_MATCH-1;
             s->strstart++;
@@ -3069,9 +2975,7 @@ if (s->strstart >= s->cur_taint[0] && s->strstart <= s->cur_taint[1]) {
              */
             Tracevv((stderr,"%c", s->window[s->strstart-1]));
             _tr_tally_lit(s, s->window[s->strstart-1], bflush);
-#ifdef DEBUG_OUT
-			fprintf(stderr, "tally_lit prev: %c\n", s->window[s->strstart - 1]);
-#endif
+
             if (bflush) {
                 FLUSH_BLOCK_ONLY(s, 0);
             }
@@ -3091,9 +2995,7 @@ if (s->strstart >= s->cur_taint[0] && s->strstart <= s->cur_taint[1]) {
     if (s->match_available) {
         Tracevv((stderr,"%c", s->window[s->strstart-1]));
         _tr_tally_lit(s, s->window[s->strstart-1], bflush);
-#ifdef DEBUG_OUT
-		fprintf(stderr, "tally_lit last: %c\n", s->window[s->strstart - 1]);
-#endif
+
         s->match_available = 0;
     }
 

@@ -946,7 +946,7 @@ static apr_status_t deflate_out_filter(ap_filter_t *f,
 
             ctx->stream.avail_in = 0; /* should be zero already anyway */
             /* flush the remaining data from the zlib buffers */
-            flush_libz_buffer(ctx, c, f->c->bucket_alloc, deflate, Z_FINISH,
+            flush_libz_buffer(ctx, c, f->c->bucket_alloc, debreach, Z_FINISH,
                               NO_UPDATE_CRC);
 
             buf = apr_palloc(r->pool, VALIDATION_SIZE);
@@ -1005,7 +1005,7 @@ static apr_status_t deflate_out_filter(ap_filter_t *f,
             apr_status_t rv;
 
             /* flush the remaining data from the zlib buffers */
-            zRC = flush_libz_buffer(ctx, c, f->c->bucket_alloc, deflate,
+            zRC = flush_libz_buffer(ctx, c, f->c->bucket_alloc, debreach,
                                     Z_SYNC_FLUSH, NO_UPDATE_CRC);
             if (zRC != Z_OK) {
                 ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(01385)

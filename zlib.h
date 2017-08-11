@@ -246,11 +246,9 @@ ZEXTERN int ZEXPORT deflateInit OF((z_streamp strm, int level));
 
 ZEXTERN int ZEXPORT deflate OF((z_streamp strm, int flush));
 
-#ifdef DEBREACH
 ZEXTERN int ZEXPORT debreach OF((z_streamp strm, int flush));
 ZEXTERN int ZEXPORT declare_unsafe OF((z_streamp strm, char **unsafe));
 ZEXTERN int ZEXPORT taint_brs OF((z_streamp strm, int *brs, unsigned len));
-#endif
 
 /*
     deflate compresses as much data as possible, and stops when the input

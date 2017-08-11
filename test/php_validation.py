@@ -3,6 +3,7 @@ import random
 import math
 import pycurl
 import shutil
+import filecmp
 from StringIO import StringIO
 
 class TestCase(object):
@@ -14,6 +15,7 @@ class TestCase(object):
     SPECIAL_DECOMP = "/home/pauls658/blib-better/minigzip"
     """
     @param data_file type:string the path to the data file
+    @param brs type:list of ints
     """
     def __init__(self, data_file, brs):
         # the absolute path to the file
@@ -120,6 +122,9 @@ class TestCase(object):
             print "return: " + str(ret)
             exit(1)
 
+        if not filecmp.cmp(TestCase.TMP_DIR + "/" + self.file_name, self.data_file):
+            raise Exception("Input data file and server response do not match")
+
         if not TestCase.validate_sec_brs(self.brs_tuples, self.brs_file):
             raise Exception("Validation test failed. Leaving files for debugging")
 
@@ -188,18 +193,20 @@ class TestCase(object):
             tainted = False
             start = 0
             out_fd.write("<?php\n require_once(\"debreach.php\");\n")
+            # TODO: brs overlap  and content is written twice
             for i in range(len(self.brs)):
                 end = self.brs[i]
                 if tainted:
                     out_fd.write(TestCase.DEBREACH_FNC + "(" + \
-                            self.php_lit_string(file_buf[start:end+1]) + \
+                            self.php_lit_string(file_buf[start:end + 1]) + \
                             ");\n")
+                    start = end + 1
                 else:
                     # file_buf[end] is tainted
                     out_fd.write("echo " + \
                             self.php_lit_string(file_buf[start:end]) + \
                             ";\n")
-                start = end + 1
+                    start = end 
                 tainted = not tainted
             # finish it off
             out_fd.write("echo " + \
@@ -228,6 +235,34 @@ class TestCaseMaker(object):
         size = os.path.getsize(real_file)
         brs = self.random_brs(size)
         return TestCase(real_file, brs)
+    
+    @staticmethod
+    def delete_overlaps(brs):
+        if len(brs) == 2:
+            return brs
+
+        ret = [brs[0]]
+        prev_end = brs[1]
+        for i in range(2, len(brs), 2):
+            # brs[i] is start
+            # brs[i + 1]= end
+            if prev_end >= brs[i]:
+                if prev_end >= brs[i + 1]:
+                    # enclosed whole br
+                    continue
+                else:
+                    prev_end = brs[i + 1]
+            else:
+                ret.append(prev_end)
+                ret.append(brs[i])
+                prev_end = brs[i+1]
+        if prev_end > brs[-1]:
+            ret.append(prev_end)
+        else:
+            ret.append(brs[-1])
+
+        return ret
+ 
 
     def random_brs(self, file_size, coverage=0.1, max_len=300, min_len=3):
         file_size = float(file_size)
@@ -247,11 +282,12 @@ class TestCaseMaker(object):
         if brs[-1][1] >= file_size:
             brs[-1] = (brs[-1][0], int(file_size - 1))
         
-        ret = []
+        untupled = []
         for start, end in brs:
-            ret.append(start)
-            ret.append(end)
-        return ret
+            untupled.append(start)
+            untupled.append(end)
+
+        return self.delete_overlaps(untupled)
 
 """
     Gets rid of the files from previous iterations.
@@ -263,8 +299,17 @@ def pre_cleaning():
         os.remove(TestCase.APACHE_DIR + "/" + TestCase.SERVER_ROOT + "/" + f)
 
 
-if __name__ == "__main__":
+def random_testcase():
     pre_cleaning()
     TCMker = TestCaseMaker("input")
     test_case = TCMker.real_testcase()
     test_case.run()
+
+def retest():
+    pre_cleaning()
+    tc = TestCase("input/facebook_text_css_22",
+            [366,556,1691,1722,4312,4513,5903,6165,8732,8911,9996,10168,10883,11153,11943,11962,12163,12176,14627,14971,16862,17039,18097,18276,18659,18687,18753,19019,20701,20855,20875,20888,21575,21673,22012,22083,24098,24305,25400,25529,25617,25854,33271,33500,35336,35391,37592,37763,38691,38778,40047,40147,40911,41043,42434,42677,43828,44054,44077,44107,44880,45134,45804,45956,46275,46325,50315,50389,50566,50744,53183,53358,55059,55121,57099,57163,57705,57731])
+    tc.run()
+
+if __name__ == "__main__":
+    while True: random_testcase()
