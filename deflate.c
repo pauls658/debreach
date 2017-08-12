@@ -2634,9 +2634,9 @@ local uInt longest_match_debreach(s, cur_match)
     char floop = 0;
     /* Boolean value. True if we flooped a byte in the window to avoid a match.
      * If a byte is flooped, it must be unflooped as soon as the match process 
-     * is done. NOTE: we may not need to unfloop if the buffer isn't used when
-     * writing out the compressed file. Should look into this.
+     * is done.
      */
+
     do {
         Assert(cur_match < s->strstart, "no future");
         match = s->window + cur_match;
@@ -2865,14 +2865,15 @@ local block_state deflate_debreach(s, flush)
 				}
 		    }
 
-	    	// Recalculate s->ins_h
-		    s->ins_h = 0;
-		    for (i = (MIN_MATCH - 1 > s->strstart) ? s->strstart : MIN_MATCH - 1; 
-				 i > 0; 
-				 i--) {
-	    		UPDATE_HASH(s, s->ins_h, s->window[s->strstart - i]);
-		    }
+			if (s->lookahead >= MIN_MATCH) {
+	    		// Recalculate s->ins_h
+		   		s->ins_h = 0;
+				for (i = 0; i < MIN_MATCH - 1; i++)
+	    			UPDATE_HASH(s, s->ins_h, s->window[s->strstart + i]);
+			}
+
 			if (s->lookahead == 0) break;
+
 			while (s->strstart > s->cur_taint[1] &&
 				   !(s->cur_taint[0] == 0 && s->cur_taint[1] == 0)) s->cur_taint += 2;
 			
