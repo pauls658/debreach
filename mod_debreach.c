@@ -57,13 +57,13 @@
 
 #include "zlib.h"
 
-static const char deflateFilterName[] = "DEBREACH";
-module AP_MODULE_DECLARE_DATA deflate_module;
+static const char debreachFilterName[] = "DEBREACH";
+module AP_MODULE_DECLARE_DATA debreach_module;
 
 #define AP_INFLATE_RATIO_LIMIT 200
 #define AP_INFLATE_RATIO_BURST 3
 
-typedef struct deflate_filter_config_t
+typedef struct debreach_filter_config_t
 {
     int windowSize;
     int memlevel;
@@ -72,13 +72,13 @@ typedef struct deflate_filter_config_t
     const char *note_ratio_name;
     const char *note_input_name;
     const char *note_output_name;
-} deflate_filter_config;
+} debreach_filter_config;
 
-typedef struct deflate_dirconf_t {
+typedef struct debreach_dirconf_t {
     apr_off_t inflate_limit;
     int ratio_limit,
         ratio_burst;
-} deflate_dirconf_t;
+} debreach_dirconf_t;
 
 /* RFC 1952 Section 2.3 defines the gzip header:
  *
@@ -93,7 +93,7 @@ static const char gzip_header[10] =
 };
 
 /* magic header */
-static const char deflate_magic[2] = { '\037', '\213' };
+static const char debreach_magic[2] = { '\037', '\213' };
 
 /* windowsize is negative to suppress Zlib header */
 #define DEFAULT_COMPRESSION Z_DEFAULT_COMPRESSION
@@ -101,7 +101,7 @@ static const char deflate_magic[2] = { '\037', '\213' };
 #define DEFAULT_MEMLEVEL 9
 #define DEFAULT_BUFFERSIZE 8096
 
-static APR_OPTIONAL_FN_TYPE(ssl_var_lookup) *mod_deflate_ssl_var = NULL;
+static APR_OPTIONAL_FN_TYPE(ssl_var_lookup) *mod_debreach_ssl_var = NULL;
 
 /* Check whether a request is gzipped, so we can un-gzip it.
  * If a request has multiple encodings, we need the gzip
@@ -209,9 +209,9 @@ static unsigned long getLong(unsigned char *string)
           | (((unsigned long)string[3]) << 24);
 }
 
-static void *create_deflate_server_config(apr_pool_t *p, server_rec *s)
+static void *create_debreach_server_config(apr_pool_t *p, server_rec *s)
 {
-    deflate_filter_config *c = apr_pcalloc(p, sizeof *c);
+    debreach_filter_config *c = apr_pcalloc(p, sizeof *c);
 
     c->memlevel   = DEFAULT_MEMLEVEL;
     c->windowSize = DEFAULT_WINDOWSIZE;
@@ -221,19 +221,19 @@ static void *create_deflate_server_config(apr_pool_t *p, server_rec *s)
     return c;
 }
 
-static void *create_deflate_dirconf(apr_pool_t *p, char *dummy)
+static void *create_debreach_dirconf(apr_pool_t *p, char *dummy)
 {
-    deflate_dirconf_t *dc = apr_pcalloc(p, sizeof(*dc));
+    debreach_dirconf_t *dc = apr_pcalloc(p, sizeof(*dc));
     dc->ratio_limit = AP_INFLATE_RATIO_LIMIT;
     dc->ratio_burst = AP_INFLATE_RATIO_BURST;
     return dc;
 }
 
-static const char *deflate_set_window_size(cmd_parms *cmd, void *dummy,
+static const char *debreach_set_window_size(cmd_parms *cmd, void *dummy,
                                            const char *arg)
 {
-    deflate_filter_config *c = ap_get_module_config(cmd->server->module_config,
-                                                    &deflate_module);
+    debreach_filter_config *c = ap_get_module_config(cmd->server->module_config,
+                                                    &debreach_module);
     int i;
 
     i = atoi(arg);
@@ -246,11 +246,11 @@ static const char *deflate_set_window_size(cmd_parms *cmd, void *dummy,
     return NULL;
 }
 
-static const char *deflate_set_buffer_size(cmd_parms *cmd, void *dummy,
+static const char *debreach_set_buffer_size(cmd_parms *cmd, void *dummy,
                                            const char *arg)
 {
-    deflate_filter_config *c = ap_get_module_config(cmd->server->module_config,
-                                                    &deflate_module);
+    debreach_filter_config *c = ap_get_module_config(cmd->server->module_config,
+                                                    &debreach_module);
     int n = atoi(arg);
 
     if (n <= 0) {
@@ -261,11 +261,11 @@ static const char *deflate_set_buffer_size(cmd_parms *cmd, void *dummy,
 
     return NULL;
 }
-static const char *deflate_set_note(cmd_parms *cmd, void *dummy,
+static const char *debreach_set_note(cmd_parms *cmd, void *dummy,
                                     const char *arg1, const char *arg2)
 {
-    deflate_filter_config *c = ap_get_module_config(cmd->server->module_config,
-                                                    &deflate_module);
+    debreach_filter_config *c = ap_get_module_config(cmd->server->module_config,
+                                                    &debreach_module);
 
     if (arg2 == NULL) {
         c->note_ratio_name = arg1;
@@ -286,11 +286,11 @@ static const char *deflate_set_note(cmd_parms *cmd, void *dummy,
     return NULL;
 }
 
-static const char *deflate_set_memlevel(cmd_parms *cmd, void *dummy,
+static const char *debreach_set_memlevel(cmd_parms *cmd, void *dummy,
                                         const char *arg)
 {
-    deflate_filter_config *c = ap_get_module_config(cmd->server->module_config,
-                                                    &deflate_module);
+    debreach_filter_config *c = ap_get_module_config(cmd->server->module_config,
+                                                    &debreach_module);
     int i;
 
     i = atoi(arg);
@@ -303,11 +303,11 @@ static const char *deflate_set_memlevel(cmd_parms *cmd, void *dummy,
     return NULL;
 }
 
-static const char *deflate_set_compressionlevel(cmd_parms *cmd, void *dummy,
+static const char *debreach_set_compressionlevel(cmd_parms *cmd, void *dummy,
                                         const char *arg)
 {
-    deflate_filter_config *c = ap_get_module_config(cmd->server->module_config,
-                                                    &deflate_module);
+    debreach_filter_config *c = ap_get_module_config(cmd->server->module_config,
+                                                    &debreach_module);
     int i;
 
     i = atoi(arg);
@@ -321,10 +321,10 @@ static const char *deflate_set_compressionlevel(cmd_parms *cmd, void *dummy,
 }
 
 
-static const char *deflate_set_inflate_limit(cmd_parms *cmd, void *dirconf,
+static const char *debreach_set_inflate_limit(cmd_parms *cmd, void *dirconf,
                                       const char *arg)
 {
-    deflate_dirconf_t *dc = (deflate_dirconf_t*) dirconf;
+    debreach_dirconf_t *dc = (debreach_dirconf_t*) dirconf;
     char *errp;
 
     if (APR_SUCCESS != apr_strtoff(&dc->inflate_limit, arg, &errp, 10)) {
@@ -337,11 +337,11 @@ static const char *deflate_set_inflate_limit(cmd_parms *cmd, void *dirconf,
     return NULL;
 }
 
-static const char *deflate_set_inflate_ratio_limit(cmd_parms *cmd,
+static const char *debreach_set_inflate_ratio_limit(cmd_parms *cmd,
                                                    void *dirconf,
                                                    const char *arg)
 {
-    deflate_dirconf_t *dc = (deflate_dirconf_t*) dirconf;
+    debreach_dirconf_t *dc = (debreach_dirconf_t*) dirconf;
     int i;
 
     i = atoi(arg);
@@ -353,11 +353,11 @@ static const char *deflate_set_inflate_ratio_limit(cmd_parms *cmd,
     return NULL;
 }
 
-static const char *deflate_set_inflate_ratio_burst(cmd_parms *cmd,
+static const char *debreach_set_inflate_ratio_burst(cmd_parms *cmd,
                                                    void *dirconf,
                                                    const char *arg)
 {
-    deflate_dirconf_t *dc = (deflate_dirconf_t*) dirconf;
+    debreach_dirconf_t *dc = (debreach_dirconf_t*) dirconf;
     int i;
 
     i = atoi(arg);
@@ -369,7 +369,7 @@ static const char *deflate_set_inflate_ratio_burst(cmd_parms *cmd,
     return NULL;
 }
 
-typedef struct deflate_ctx_t
+typedef struct debreach_ctx_t
 {
     z_stream stream;
     unsigned char *buffer;
@@ -387,7 +387,7 @@ typedef struct deflate_ctx_t
                  consume_len;
     unsigned int filter_init:1;
     unsigned int done:1;
-} deflate_ctx;
+} debreach_ctx;
 
 /* Number of validation bytes (CRC and length) after the compressed data */
 #define VALIDATION_SIZE 8
@@ -396,20 +396,20 @@ typedef struct deflate_ctx_t
 /* Do update ctx->crc, see comment in flush_libz_buffer */
 #define UPDATE_CRC 1
 
-static int flush_libz_buffer(deflate_ctx *ctx, deflate_filter_config *c,
+static int flush_libz_buffer(debreach_ctx *ctx, debreach_filter_config *c,
                              struct apr_bucket_alloc_t *bucket_alloc,
                              int (*libz_func)(z_streamp, int), int flush,
                              int crc)
 {
     int zRC = Z_OK;
     int done = 0;
-    unsigned int deflate_len;
+    unsigned int debreach_len;
     apr_bucket *b;
 
     for (;;) {
-         deflate_len = c->bufferSize - ctx->stream.avail_out;
+         debreach_len = c->bufferSize - ctx->stream.avail_out;
 
-         if (deflate_len != 0) {
+         if (debreach_len != 0) {
              /*
               * Do we need to update ctx->crc? Usually this is the case for
               * inflate action where we need to do a crc on the output, whereas
@@ -417,10 +417,10 @@ static int flush_libz_buffer(deflate_ctx *ctx, deflate_filter_config *c,
               */
              if (crc) {
                  ctx->crc = crc32(ctx->crc, (const Bytef *)ctx->buffer,
-                                  deflate_len);
+                                  debreach_len);
              }
              b = apr_bucket_heap_create((char *)ctx->buffer,
-                                        deflate_len, NULL,
+                                        debreach_len, NULL,
                                         bucket_alloc);
              APR_BRIGADE_INSERT_TAIL(ctx->bb, b);
              ctx->stream.next_out = ctx->buffer;
@@ -457,9 +457,9 @@ static int flush_libz_buffer(deflate_ctx *ctx, deflate_filter_config *c,
     return zRC;
 }
 
-static apr_status_t deflate_ctx_cleanup(void *data)
+static apr_status_t debreach_ctx_cleanup(void *data)
 {
-    deflate_ctx *ctx = (deflate_ctx *)data;
+    debreach_ctx *ctx = (debreach_ctx *)data;
 
     if (ctx)
         ctx->libz_end_func(&ctx->stream);
@@ -472,7 +472,7 @@ static apr_status_t deflate_ctx_cleanup(void *data)
  * value inside the double-quotes if an ETag has already been set
  * and its value already contains double-quotes. PR 39727
  */
-static void deflate_check_etag(request_rec *r, const char *transform)
+static void debreach_check_etag(request_rec *r, const char *transform)
 {
     const char *etag = apr_table_get(r->headers_out, "ETag");
     apr_size_t etaglen;
@@ -503,8 +503,8 @@ static void deflate_check_etag(request_rec *r, const char *transform)
 }
 
 /* Check whether the (inflate) ratio exceeds the configured limit/burst. */
-static int check_ratio(request_rec *r, deflate_ctx *ctx,
-                       const deflate_dirconf_t *dc)
+static int check_ratio(request_rec *r, debreach_ctx *ctx,
+                       const debreach_dirconf_t *dc)
 {
     if (ctx->stream.total_in) {
         int ratio = ctx->stream.total_out / ctx->stream.total_in;
@@ -521,9 +521,9 @@ static int check_ratio(request_rec *r, deflate_ctx *ctx,
 static int have_ssl_compression(request_rec *r)
 {
     const char *comp;
-    if (mod_deflate_ssl_var == NULL)
+    if (mod_debreach_ssl_var == NULL)
         return 0;
-    comp = mod_deflate_ssl_var(r->pool, r->server, r->connection, r,
+    comp = mod_debreach_ssl_var(r->pool, r->server, r->connection, r,
                                "SSL_COMPRESS_METHOD");
     if (comp == NULL || *comp == '\0' || strcmp(comp, "NULL") == 0)
         return 0;
@@ -630,16 +630,16 @@ int string_to_debreach_array(request_rec *r, char* br_string, int** taint) {
     return n + 2;
 }
 
-static apr_status_t deflate_out_filter(ap_filter_t *f,
+static apr_status_t debreach_out_filter(ap_filter_t *f,
                                        apr_bucket_brigade *bb)
 {
     apr_bucket *e;
     request_rec *r = f->r;
-    deflate_ctx *ctx = f->ctx;
+    debreach_ctx *ctx = f->ctx;
     int zRC;
     apr_size_t len = 0, blen;
     const char *data;
-    deflate_filter_config *c;
+    debreach_filter_config *c;
 
     /* Do nothing if asked to filter nothing. */
     if (APR_BRIGADE_EMPTY(bb)) {
@@ -647,7 +647,7 @@ static apr_status_t deflate_out_filter(ap_filter_t *f,
     }
 
     c = ap_get_module_config(r->server->module_config,
-                             &deflate_module);
+                             &debreach_module);
 
     /* If we don't have a context, we need to ensure that it is okay to send
      * the deflated content.  If we have a context, that means we've done
@@ -853,11 +853,11 @@ static apr_status_t deflate_out_filter(ap_filter_t *f,
                                Z_DEFAULT_STRATEGY);
 
             if (zRC != Z_OK) {
-                deflateEnd(&ctx->stream);
                 ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(01383)
                               "unable to init Zlib: "
-                              "deflateInit2 returned %d: URL %s",
-                              zRC, r->uri);
+                              "deflateInit2 returned %d: URL %s message \"%s\"",
+                              zRC, r->uri, ctx->stream.msg);
+                deflateEnd(&ctx->stream);
                 /*
                  * Remove ourselves as it does not make sense to return:
                  * We are not able to init libz and pass data down the chain
@@ -870,7 +870,7 @@ static apr_status_t deflate_out_filter(ap_filter_t *f,
              * Register a cleanup function to ensure that we cleanup the internal
              * libz resources.
              */
-            apr_pool_cleanup_register(r->pool, ctx, deflate_ctx_cleanup,
+            apr_pool_cleanup_register(r->pool, ctx, debreach_ctx_cleanup,
                                       apr_pool_cleanup_null);
 
             /* Set the filter init flag so subsequent invocations know we are
@@ -898,7 +898,7 @@ static apr_status_t deflate_out_filter(ap_filter_t *f,
         }
         apr_table_unset(r->headers_out, "Content-Length");
         apr_table_unset(r->headers_out, "Content-MD5");
-        deflate_check_etag(r, "gzip");
+        debreach_check_etag(r, "gzip");
 
         /* For a 304 response, only change the headers */
         if (r->status == HTTP_NOT_MODIFIED) {
@@ -988,7 +988,7 @@ static apr_status_t deflate_out_filter(ap_filter_t *f,
 
             deflateEnd(&ctx->stream);
             /* No need for cleanup any longer */
-            apr_pool_cleanup_kill(r->pool, ctx, deflate_ctx_cleanup);
+            apr_pool_cleanup_kill(r->pool, ctx, debreach_ctx_cleanup);
 
             /* Remove EOS from the old list, and insert into the new. */
             APR_BUCKET_REMOVE(e);
@@ -1121,7 +1121,7 @@ static apr_status_t deflate_out_filter(ap_filter_t *f,
     return APR_SUCCESS;
 }
 
-static apr_status_t consume_zlib_flags(deflate_ctx *ctx,
+static apr_status_t consume_zlib_flags(debreach_ctx *ctx,
                                        const char **data, apr_size_t *len)
 {
     if ((ctx->zlib_flags & EXTRA_FIELD)) {
@@ -1212,7 +1212,7 @@ static apr_status_t consume_zlib_flags(deflate_ctx *ctx,
 }
 
 /* This is the deflate input filter (inflates).  */
-static apr_status_t deflate_in_filter(ap_filter_t *f,
+static apr_status_t debreach_in_filter(ap_filter_t *f,
                                       apr_bucket_brigade *bb,
                                       ap_input_mode_t mode,
                                       apr_read_type_e block,
@@ -1220,11 +1220,11 @@ static apr_status_t deflate_in_filter(ap_filter_t *f,
 {
     apr_bucket *bkt;
     request_rec *r = f->r;
-    deflate_ctx *ctx = f->ctx;
+    debreach_ctx *ctx = f->ctx;
     int zRC;
     apr_status_t rv;
-    deflate_filter_config *c;
-    deflate_dirconf_t *dc;
+    debreach_filter_config *c;
+    debreach_dirconf_t *dc;
     apr_off_t inflate_limit;
 
     /* just get out of the way of things we don't want. */
@@ -1232,8 +1232,8 @@ static apr_status_t deflate_in_filter(ap_filter_t *f,
         return ap_get_brigade(f->next, bb, mode, block, readbytes);
     }
 
-    c = ap_get_module_config(r->server->module_config, &deflate_module);
-    dc = ap_get_module_config(r->per_dir_config, &deflate_module);
+    c = ap_get_module_config(r->server->module_config, &debreach_module);
+    dc = ap_get_module_config(r->per_dir_config, &debreach_module);
 
     if (!ctx || ctx->header_len < sizeof(ctx->header)) {
         apr_size_t len;
@@ -1316,8 +1316,8 @@ static apr_status_t deflate_in_filter(ap_filter_t *f,
         } while (ctx->header_len < sizeof(ctx->header));
 
         /* We didn't get the magic bytes. */
-        if (ctx->header[0] != deflate_magic[0] ||
-            ctx->header[1] != deflate_magic[1]) {
+        if (ctx->header[0] != debreach_magic[0] ||
+            ctx->header[1] != debreach_magic[1]) {
             ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, APLOGNO(01387)
                           "Zlib: Invalid header");
             return APR_EGENERAL;
@@ -1647,19 +1647,19 @@ static apr_status_t inflate_out_filter(ap_filter_t *f,
 {
     apr_bucket *e;
     request_rec *r = f->r;
-    deflate_ctx *ctx = f->ctx;
+    debreach_ctx *ctx = f->ctx;
     int zRC;
     apr_status_t rv;
-    deflate_filter_config *c;
-    deflate_dirconf_t *dc;
+    debreach_filter_config *c;
+    debreach_dirconf_t *dc;
 
     /* Do nothing if asked to filter nothing. */
     if (APR_BRIGADE_EMPTY(bb)) {
         return APR_SUCCESS;
     }
 
-    c = ap_get_module_config(r->server->module_config, &deflate_module);
-    dc = ap_get_module_config(r->per_dir_config, &deflate_module);
+    c = ap_get_module_config(r->server->module_config, &debreach_module);
+    dc = ap_get_module_config(r->per_dir_config, &debreach_module);
 
     if (!ctx) {
 
@@ -1684,7 +1684,7 @@ static apr_status_t inflate_out_filter(ap_filter_t *f,
          */
         apr_table_unset(r->headers_out, "Content-Length");
         apr_table_unset(r->headers_out, "Content-MD5");
-        deflate_check_etag(r, "gunzip");
+        debreach_check_etag(r, "gunzip");
 
         /* For a 304 response, only change the headers */
         if (r->status == HTTP_NOT_MODIFIED) {
@@ -1721,7 +1721,7 @@ static apr_status_t inflate_out_filter(ap_filter_t *f,
          * Register a cleanup function to ensure that we cleanup the internal
          * libz resources.
          */
-        apr_pool_cleanup_register(r->pool, ctx, deflate_ctx_cleanup,
+        apr_pool_cleanup_register(r->pool, ctx, debreach_ctx_cleanup,
                                   apr_pool_cleanup_null);
 
         /* initialize inflate output buffer */
@@ -1785,7 +1785,7 @@ static apr_status_t inflate_out_filter(ap_filter_t *f,
 
             inflateEnd(&ctx->stream);
             /* No need for cleanup any longer */
-            apr_pool_cleanup_kill(r->pool, ctx, deflate_ctx_cleanup);
+            apr_pool_cleanup_kill(r->pool, ctx, debreach_ctx_cleanup);
 
             /* Remove EOS from the old list, and insert into the new. */
             APR_BUCKET_REMOVE(e);
@@ -1870,8 +1870,8 @@ static apr_status_t inflate_out_filter(ap_filter_t *f,
                     ap_remove_output_filter(f);
                     return ap_pass_brigade(f->next, bb);
                 }
-                if (ctx->header[0] != deflate_magic[0] ||
-                    ctx->header[1] != deflate_magic[1]) {
+                if (ctx->header[0] != debreach_magic[0] ||
+                    ctx->header[1] != debreach_magic[1]) {
                         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(01405)
                                       "inflate: bad header");
                     return APR_EGENERAL ;
@@ -2000,10 +2000,10 @@ static apr_status_t inflate_out_filter(ap_filter_t *f,
     return APR_SUCCESS;
 }
 
-static int mod_deflate_post_config(apr_pool_t *pconf, apr_pool_t *plog,
+static int mod_debreach_post_config(apr_pool_t *pconf, apr_pool_t *plog,
                                    apr_pool_t *ptemp, server_rec *s)
 {
-    mod_deflate_ssl_var = APR_RETRIEVE_OPTIONAL_FN(ssl_var_lookup);
+    mod_debreach_ssl_var = APR_RETRIEVE_OPTIONAL_FN(ssl_var_lookup);
     return OK;
 }
 
@@ -2011,32 +2011,32 @@ static int mod_deflate_post_config(apr_pool_t *pconf, apr_pool_t *plog,
 #define PROTO_FLAGS AP_FILTER_PROTO_CHANGE|AP_FILTER_PROTO_CHANGE_LENGTH
 static void register_hooks(apr_pool_t *p)
 {
-    ap_register_output_filter(deflateFilterName, deflate_out_filter, NULL,
+    ap_register_output_filter(debreachFilterName, debreach_out_filter, NULL,
                               AP_FTYPE_CONTENT_SET);
     ap_register_output_filter("INFLATE", inflate_out_filter, NULL,
                               AP_FTYPE_RESOURCE-1);
-    ap_register_input_filter(deflateFilterName, deflate_in_filter, NULL,
+    ap_register_input_filter(debreachFilterName, debreach_in_filter, NULL,
                               AP_FTYPE_CONTENT_SET);
-    ap_hook_post_config(mod_deflate_post_config, NULL, NULL, APR_HOOK_MIDDLE);
+    ap_hook_post_config(mod_debreach_post_config, NULL, NULL, APR_HOOK_MIDDLE);
 }
 
-static const command_rec deflate_filter_cmds[] = {
-    AP_INIT_TAKE12("DeflateFilterNote", deflate_set_note, NULL, RSRC_CONF,
+static const command_rec debreach_filter_cmds[] = {
+    AP_INIT_TAKE12("DeflateFilterNote", debreach_set_note, NULL, RSRC_CONF,
                   "Set a note to report on compression ratio"),
-    AP_INIT_TAKE1("DeflateWindowSize", deflate_set_window_size, NULL,
+    AP_INIT_TAKE1("DeflateWindowSize", debreach_set_window_size, NULL,
                   RSRC_CONF, "Set the Deflate window size (1-15)"),
-    AP_INIT_TAKE1("DeflateBufferSize", deflate_set_buffer_size, NULL, RSRC_CONF,
+    AP_INIT_TAKE1("DeflateBufferSize", debreach_set_buffer_size, NULL, RSRC_CONF,
                   "Set the Deflate Buffer Size"),
-    AP_INIT_TAKE1("DeflateMemLevel", deflate_set_memlevel, NULL, RSRC_CONF,
+    AP_INIT_TAKE1("DeflateMemLevel", debreach_set_memlevel, NULL, RSRC_CONF,
                   "Set the Deflate Memory Level (1-9)"),
-    AP_INIT_TAKE1("DeflateCompressionLevel", deflate_set_compressionlevel, NULL, RSRC_CONF,
+    AP_INIT_TAKE1("DeflateCompressionLevel", debreach_set_compressionlevel, NULL, RSRC_CONF,
                   "Set the Deflate Compression Level (1-9)"),
-    AP_INIT_TAKE1("DeflateInflateLimitRequestBody", deflate_set_inflate_limit, NULL, OR_ALL,
+    AP_INIT_TAKE1("DeflateInflateLimitRequestBody", debreach_set_inflate_limit, NULL, OR_ALL,
                   "Set a limit on size of inflated input"),
-    AP_INIT_TAKE1("DeflateInflateRatioLimit", deflate_set_inflate_ratio_limit, NULL, OR_ALL,
+    AP_INIT_TAKE1("DeflateInflateRatioLimit", debreach_set_inflate_ratio_limit, NULL, OR_ALL,
                   "Set the inflate ratio limit above which inflation is "
                   "aborted (default: " APR_STRINGIFY(AP_INFLATE_RATIO_LIMIT) ")"),
-    AP_INIT_TAKE1("DeflateInflateRatioBurst", deflate_set_inflate_ratio_burst, NULL, OR_ALL,
+    AP_INIT_TAKE1("DeflateInflateRatioBurst", debreach_set_inflate_ratio_burst, NULL, OR_ALL,
                   "Set the maximum number of following inflate ratios above limit "
                   "(default: " APR_STRINGIFY(AP_INFLATE_RATIO_BURST) ")"),
     {NULL}
@@ -2044,10 +2044,10 @@ static const command_rec deflate_filter_cmds[] = {
 
 AP_DECLARE_MODULE(debreach) = {
     STANDARD20_MODULE_STUFF,
-    create_deflate_dirconf,       /* dir config creater */
+    create_debreach_dirconf,       /* dir config creater */
     NULL,                         /* dir merger --- default is to override */
-    create_deflate_server_config, /* server config */
+    create_debreach_server_config, /* server config */
     NULL,                         /* merge server config */
-    deflate_filter_cmds,          /* command table */
+    debreach_filter_cmds,          /* command table */
     register_hooks                /* register hooks */
 };
