@@ -11,7 +11,7 @@
 #    cp contrib/asm?86/match.S ./match.S
 #    make LOC=-DASMV OBJA=match.o
 
-# To install /usr/local/lib/libz.* and /usr/local/include/zlib.h, type:
+# To install /usr/local/lib/libdz.* and /usr/local/include/zlib.h, type:
 #    make install
 # To install in $HOME instead of /usr/local, use:
 #    make install prefix=$HOME
@@ -29,14 +29,14 @@ singlefile=-O0 -g
 SFLAGS=-O0 -g -fPIC -D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -DDEBREACH
 
 LDFLAGS= 
-TEST_LDFLAGS=-L. libz.a
-LDSHARED=gcc -shared -Wl,-soname,libz.so.1,--version-script,zlib.map
+TEST_LDFLAGS=-L. libdz.a
+LDSHARED=gcc -shared -Wl,-soname,libdz.so.1,--version-script,zlib.map
 CPP=gcc -E
 
-STATICLIB=libz.a
-SHAREDLIB=libz.so
-SHAREDLIBV=libz.so.1.2.8
-SHAREDLIBM=libz.so.1
+STATICLIB=libdz.a
+SHAREDLIB=libdz.so
+SHAREDLIBV=libdz.so.1.2.8
+SHAREDLIBM=libdz.so.1
 LIBS=$(STATICLIB) $(SHAREDLIBV)
 
 AR=ar
@@ -118,15 +118,15 @@ test64: all64
 infcover.o: test/infcover.c zlib.h zconf.h
 	$(CC) $(CFLAGS) -I. -c -o $@ test/infcover.c
 
-infcover: infcover.o libz.a
-	$(CC) $(CFLAGS) -o $@ infcover.o libz.a
+infcover: infcover.o libdz.a
+	$(CC) $(CFLAGS) -o $@ infcover.o libdz.a
 
 cover: infcover
 	rm -f *.gcda
 	./infcover
 	gcov inf*.c
 
-libz.a: $(OBJS)
+libdz.a: $(OBJS)
 	$(AR) $(ARFLAGS) $@ $(OBJS)
 	-@ ($(RANLIB) $@ || true) >/dev/null 2>&1
 
@@ -167,7 +167,7 @@ minigzip64.o: test/minigzip.c zlib.h zconf.h
 	$(CC) $(SFLAGS) -DPIC -c -o objs/$*.o $<
 	-@mv objs/$*.o $@
 
-placebo $(SHAREDLIBV): $(PIC_OBJS) libz.a
+placebo $(SHAREDLIBV): $(PIC_OBJS) libdz.a
 	$(LDSHARED) $(SFLAGS) -o $@ $(PIC_OBJS) $(LDSHAREDLIBC) $(LDFLAGS)
 	rm -f $(SHAREDLIB) $(SHAREDLIBM)
 	ln -s $@ $(SHAREDLIB)
@@ -206,7 +206,7 @@ install-libs: $(LIBS)
 	-@if [ ! -d $(DESTDIR)$(pkgconfigdir) ]; then mkdir -p $(DESTDIR)$(pkgconfigdir); fi
 	cp $(STATICLIB) $(DESTDIR)$(libdir)
 	chmod 644 $(DESTDIR)$(libdir)/$(STATICLIB)
-	-@($(RANLIB) $(DESTDIR)$(libdir)/libz.a || true) >/dev/null 2>&1
+	-@($(RANLIB) $(DESTDIR)$(libdir)/libdz.a || true) >/dev/null 2>&1
 	-@if test -n "$(SHAREDLIBV)"; then \
 	  cp $(SHAREDLIBV) $(DESTDIR)$(sharedlibdir); \
 	  echo "cp $(SHAREDLIBV) $(DESTDIR)$(sharedlibdir)"; \
@@ -231,7 +231,7 @@ install: install-libs
 
 uninstall:
 	cd $(DESTDIR)$(includedir) && rm -f zlib.h zconf.h
-	cd $(DESTDIR)$(libdir) && rm -f libz.a; \
+	cd $(DESTDIR)$(libdir) && rm -f libdz.a; \
 	if test -n "$(SHAREDLIBV)" -a -f $(SHAREDLIBV); then \
 	  rm -f $(SHAREDLIBV) $(SHAREDLIB) $(SHAREDLIBM); \
 	fi
@@ -259,7 +259,7 @@ clean:
 	   example$(EXE) minigzip$(EXE) examplesh$(EXE) minigzipsh$(EXE) \
 	   example64$(EXE) minigzip64$(EXE) minidebreach* compressstream* singlefile*\
 	   infcover \
-	   libz.* foo.gz so_locations \
+	   libdz.* foo.gz so_locations \
 	   _match.s maketree contrib/infback9/*.o
 	rm -rf objs
 	rm -f *.gcda *.gcno *.gcov
