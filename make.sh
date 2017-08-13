@@ -11,7 +11,8 @@ if [[ $1 == "lib" ]]; then
 	make clean
 	make
 	make install
-	echo "remember to restart httpd!"
+	apxs -i -a -c mod_debreach.c -I/usr/local/include -L/usr/local/lib -ldz -DDEBREACH
+	service apache2 restart
 elif [[ $1 == "validation" ]]; then
 	cp Makefiles/validation_Makefile Makefile
 	make clean
@@ -21,7 +22,8 @@ elif [[ $1 == "debug" ]]; then
 	make clean
 	make
 	make install
-	echo "remember to restart httpd!"
+	apxs -i -a -c mod_debreach.c -I/usr/local/include -L/usr/local/lib -ldz -DDEBREACH
+	service apache2 restart
 else
 	echo "bad!"
 fi
