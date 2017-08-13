@@ -8,11 +8,11 @@ from StringIO import StringIO
 
 class TestCase(object):
     DEBREACH_FNC = "d_echo"
-    APACHE_DIR = "/usr/local/apache2/htdocs"
+    APACHE_DIR = "/var/www/html"
     SERVER_ROOT = "debreach_validation"
-    SERVER_NAME = "localhost"
+    SERVER_NAME = "node1"
     TMP_DIR = "/tmp" + "/" + SERVER_ROOT
-    SPECIAL_DECOMP = "/home/pauls658/blib-better/minigzip"
+    SPECIAL_DECOMP = "/home/umdsectb/blib-better-validate/minigzip"
     """
     @param data_file type:string the path to the data file
     @param brs type:list of ints
@@ -189,7 +189,8 @@ class TestCase(object):
     def make_php_file(self):
         self.php_fp = TestCase.APACHE_DIR + "/" + self.resource_path
         file_buf = open(self.data_file, "rb").read()
-        with open(self.php_fp, "wb+") as out_fd:
+        tmp = TestCase.TMP_DIR + "/tmp.php"
+        with open(tmp, "wb+") as out_fd:
             tainted = False
             start = 0
             out_fd.write("<?php\n require_once(\"debreach.php\");\n")
@@ -212,6 +213,8 @@ class TestCase(object):
             out_fd.write("echo " + \
                     self.php_lit_string(file_buf[start:len(file_buf)]) + ";\n")
             out_fd.write("?>")
+        os.system("scp %s %s:%s" % (tmp, TestCase.SERVER_NAME, self.php_fp))
+        os.remove(tmp)
         self.created_files.append(self.php_fp)
                 
 class TestCaseMaker(object):
@@ -295,8 +298,7 @@ class TestCaseMaker(object):
 def pre_cleaning():
     for f in os.listdir(TestCase.TMP_DIR):
         os.remove(TestCase.TMP_DIR + "/" + f)
-    for f in os.listdir(TestCase.APACHE_DIR + "/" + TestCase.SERVER_ROOT):
-        os.remove(TestCase.APACHE_DIR + "/" + TestCase.SERVER_ROOT + "/" + f)
+    os.system('ssh %s "rm %s/%s/*"' % (TestCase.SERVER_NAME, TestCase.APACHE_DIR, TestCase.SERVER_ROOT))
 
 
 def random_testcase():
