@@ -6,7 +6,6 @@ function d_echo($data) {
 	echo $data;	
 }
 
-$DEBREACH_DEBUG = False;
 if (!array_key_exists('__DEBREACH_DATA_COUNT', $_REQUEST)) {
 	$_REQUEST['__DEBREACH_DATA_COUNT'] = 0;
 }
@@ -14,6 +13,7 @@ if (!array_key_exists('__DEBREACH_TAINT_BUF', $_REQUEST)) {
 	$_REQUEST['__DEBREACH_TAINT_BUF'] = False;
 }
 function __debreach_filter($data) {
+	$DEBREACH_DEBUG = False;
     //DEBUG
     $SEP_START="\n#################### (";
     $SEP_END=") ##################\n";
@@ -45,15 +45,15 @@ function __debreach_filter($data) {
 		} 
 		$_REQUEST['__DEBREACH_TAINT_BUF'] = False;
 
-		//DEBUG
-		$debug_file = fopen($TAINTED_STR_FILE, "a+");
-		if (!$debug_file)
-			error_log(error_get_last()["message"]);
-		fwrite($debug_file, $data);
-		fwrite($debug_file, $SEP_START . $cur_byte . "," . ($cur_byte + strlen($data) - 1));
-		fwrite($debug_file, $SEP_END);
-		fclose($debug_file);
-		//DEBUG
+		if ($DEBREACH_DEBUG) {
+    		$debug_file = fopen($TAINTED_STR_FILE, "a+");
+    		if (!$debug_file)
+    			error_log(error_get_last()["message"]);
+    		fwrite($debug_file, $data);
+    		fwrite($debug_file, $SEP_START . $cur_byte . "," . ($cur_byte + strlen($data) - 1));
+    		fwrite($debug_file, $SEP_END);
+    		fclose($debug_file);
+		}
 	}
 
 	$_REQUEST['__DEBREACH_DATA_COUNT'] += strlen($data);
