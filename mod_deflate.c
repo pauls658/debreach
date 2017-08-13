@@ -36,7 +36,6 @@
 /* debreach vars */
 #define DEBREACH_KEY "__DEBREACH_BRS"
 
-#define VDEBUG 1
 #ifdef VDEBUG
 #include <stdio.h>
 #include <string.h>
