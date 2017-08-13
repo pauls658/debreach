@@ -32,8 +32,14 @@
 #define ORIG_NAME    0x08 /* bit 3 set: original file name present */
 #define COMMENT      0x10 /* bit 4 set: file comment present */
 #define RESERVED     0xE0 /* bits 5..7: reserved */
+
+/* debreach vars */
 #define DEBREACH_KEY "__DEBREACH_BRS"
 
+#ifdef VDEBUG
+#include <stdio.h>
+#include <string.h>
+#endif
 
 #include "httpd.h"
 #include "http_config.h"
@@ -51,7 +57,7 @@
 
 #include "zlib.h"
 
-static const char deflateFilterName[] = "DEFLATE";
+static const char deflateFilterName[] = "DEBREACH";
 module AP_MODULE_DECLARE_DATA deflate_module;
 
 #define AP_INFLATE_RATIO_LIMIT 200
@@ -524,6 +530,106 @@ static int have_ssl_compression(request_rec *r)
     return 1;
 }
 
+int is_number(str)
+    char *str;
+{
+    char *temp = str;
+    while (*temp != '\0') {
+      if (isdigit((int)*temp) == 0)
+    return 0;
+      temp++;
+    }
+    return 1;
+}
+
+int char_count(char* str, char c) {
+   int ct = 0;
+   char *temp = str;
+   while (*temp != '\0') {
+       if (*temp == c)
+           ct++;
+       temp++;
+   }
+   return ct;
+}
+
+void align_brs(request_rec *r, z_stream *z, int *brs) {
+	int *temp = brs;
+	while (!(*temp == 0 && *(temp + 1) == 0)) {
+		*temp -= ((int) z->total_in);
+		if (*temp < 0) {
+        	ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(01386)
+        		"error: align_brs: br is less than 0. Total in: %lu", z->total_in);
+		}
+		temp++;
+	}
+}
+
+#ifdef VDEBUG
+void write_buf_chunks(FILE *fd, char *buf, int *brs, int total_in, int buf_len) {
+	char *sep_start = "\n#################### (";
+	char *sep_end = ") ##################\n";
+	int *temp = brs;
+	int len;
+	while(!(*temp == 0 && *(temp + 1) == 0)) {
+		len = *(temp + 1) - *temp + 1;
+		fwrite((void*) buf + *temp, 1, len, fd);
+		fwrite((void *) sep_start, 1, strlen(sep_start), fd);
+		fprintf(fd, "%d-%d total_in=%d len=%d", *temp, *(temp + 1), total_in, buf_len);
+		fwrite((void *) sep_end, 1, strlen(sep_end), fd);
+		temp += 2;
+	}
+}
+#endif
+
+/**
+	@param r: the request object. used for logging
+	@param br_string: a comma separated list of byte ranges in *string* form
+	@param taint: a reference to int pointer
+
+	returns the full length of taint (including double NULL term). If the return != 0, taint will
+	point to an array of integers. Oherwise, taint remains unchanged.
+*/
+int string_to_debreach_array(request_rec *r, char* br_string, int** taint) {
+    char* str = br_string;
+    int n = char_count(str, ',') + 1;
+    if (n == 0 || n % 2 != 0) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(01386)
+        	"error: string_to_debreach_array: odd number of byte values given (%s)", str);
+        return 0;
+    }
+    // + 2 for the double null terminator                                           
+    *taint = (int *) malloc(sizeof(int)*(n + 2));
+    char *temp;
+    int i = 0;
+    while (1) {
+        temp = strstr(str, ",");
+        if (temp == NULL) {
+            if (is_number(str)) {
+                (*taint)[i] = atoi(str);
+                break;
+            } else {
+            	ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(01386)
+                	"error: string_to_debreach_array: invalid value given (%s)", str);
+                return 0;
+            }
+        }
+        *temp = '\0';
+        if (is_number(str)) {
+            (*taint)[i] = atoi(str);
+            i++;
+            str = temp + 1;
+        } else {
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(01386)
+            	"error: string_to_debreach_array: invalid value given (%s)", str);
+            return 0;
+        }
+    }
+    (*taint)[n] = 0;
+    (*taint)[n + 1] = 0;
+    return n + 2;
+}
+
 static apr_status_t deflate_out_filter(ap_filter_t *f,
                                        apr_bucket_brigade *bb)
 {
@@ -698,7 +804,58 @@ static apr_status_t deflate_out_filter(ap_filter_t *f,
         if (!apr_table_get(r->subprocess_env, "force-gzip")) {
             const char *accepts;
             /* if they don't have the line, then they can't play */
-            accepts = apr_table_get(r->he"
+            accepts = apr_table_get(r->headers_in, "Accept-Encoding");
+            if (accepts == NULL) {
+                ap_remove_output_filter(f);
+                return ap_pass_brigade(f->next, bb);
+            }
+
+            token = ap_get_token(r->pool, &accepts, 0);
+            while (token && token[0] && strcasecmp(token, "gzip")) {
+                /* skip parameters, XXX: ;q=foo evaluation? */
+                while (*accepts == ';') {
+                    ++accepts;
+                    ap_get_token(r->pool, &accepts, 1);
+                }
+
+                /* retrieve next token */
+                if (*accepts == ',') {
+                    ++accepts;
+                }
+                token = (*accepts) ? ap_get_token(r->pool, &accepts, 0) : NULL;
+            }
+
+            /* No acceptable token found. */
+            if (token == NULL || token[0] == '\0') {
+                ap_log_rerror(APLOG_MARK, APLOG_TRACE1, 0, r,
+                              "Not compressing (no Accept-Encoding: gzip)");
+                ap_remove_output_filter(f);
+                return ap_pass_brigade(f->next, bb);
+            }
+        }
+        else {
+            ap_log_rerror(APLOG_MARK, APLOG_TRACE1, 0, r,
+                          "Forcing compression (force-gzip set)");
+        }
+
+        /* At this point we have decided to filter the content. Let's try to
+         * to initialize zlib (except for 304 responses, where we will only
+         * send out the headers).
+         */
+
+        if (r->status != HTTP_NOT_MODIFIED) {
+            ctx->bb = apr_brigade_create(r->pool, f->c->bucket_alloc);
+            ctx->buffer = apr_palloc(r->pool, c->bufferSize);
+            ctx->libz_end_func = deflateEnd;
+
+            zRC = deflateInit2(&ctx->stream, c->compressionlevel, Z_DEFLATED,
+                               c->windowSize, c->memlevel,
+                               Z_DEFAULT_STRATEGY);
+
+            if (zRC != Z_OK) {
+                deflateEnd(&ctx->stream);
+                ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(01383)
+                              "unable to init Zlib: "
                               "deflateInit2 returned %d: URL %s",
                               zRC, r->uri);
                 /*
@@ -788,8 +945,8 @@ static apr_status_t deflate_out_filter(ap_filter_t *f,
 
             ctx->stream.avail_in = 0; /* should be zero already anyway */
             /* flush the remaining data from the zlib buffers */
-            flush_libz_buffer(ctx, c, f->c->bucket_alloc, deflate, Z_FINISH,
-                  ;
+            flush_libz_buffer(ctx, c, f->c->bucket_alloc, debreach, Z_FINISH,
+                              NO_UPDATE_CRC);
 
             buf = apr_palloc(r->pool, VALIDATION_SIZE);
             putLong((unsigned char *)&buf[0], ctx->crc);
@@ -847,7 +1004,7 @@ static apr_status_t deflate_out_filter(ap_filter_t *f,
             apr_status_t rv;
 
             /* flush the remaining data from the zlib buffers */
-            zRC = flush_libz_buffer(ctx, c, f->c->bucket_alloc, deflate,
+            zRC = flush_libz_buffer(ctx, c, f->c->bucket_alloc, debreach,
                                     Z_SYNC_FLUSH, NO_UPDATE_CRC);
             if (zRC != Z_OK) {
                 ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(01385)
@@ -881,7 +1038,7 @@ static apr_status_t deflate_out_filter(ap_filter_t *f,
         if (!len) {
             apr_bucket_delete(e);
             continue;
-		}
+        }
         if (len > APR_INT32_MAX) {
             apr_bucket_split(e, APR_INT32_MAX);
             apr_bucket_read(e, &data, &len, APR_BLOCK_READ);
@@ -895,12 +1052,39 @@ static apr_status_t deflate_out_filter(ap_filter_t *f,
                                                       * but we'll just have to
                                                       * trust zlib */
         ctx->stream.avail_in = len;
-        char *val = (char *) apr_table_get(r->notes, DEBREACH_KEY);
-        if (val != NULL){
+
+
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(01386)
+        	"Debreach called");
+		char *val = (char *) apr_table_get(r->notes, DEBREACH_KEY);
+		if (val != NULL) {
+
             ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(01386)
-                          "Debreach brs string: %s", val);
-			declare_unsafe(&(ctx->stream), val);
-        }
+            	"Debreach brs string: %s", val);
+			int *brs;
+			unsigned int brs_len = (unsigned int) string_to_debreach_array(r, val, &brs);
+			if (brs_len != 0) {
+				align_brs(r, &(ctx->stream), brs);
+				taint_brs(&(ctx->stream), brs, brs_len);
+			}
+			apr_table_unset(r->notes, DEBREACH_KEY);
+
+#ifdef VDEBUG
+    		char *tainted_str_file = "/tmp/debreach_validation/mod_debreach_strs";
+    		FILE *debug_file = fopen(tainted_str_file, "a+");
+    		write_buf_chunks(debug_file, ctx->stream.next_in, brs, (int)ctx->stream.total_in, (int)ctx->stream.avail_in);
+    		fclose(debug_file);
+#endif
+
+		}
+
+#ifdef VDEBUG
+		char *all_of_it_path = "/tmp/debreach_validation/all_of_it";
+		FILE *fd = fopen(all_of_it_path, "a+");
+		fwrite(ctx->stream.next_in, 1, len, fd);
+		fprintf(fd, "\n##############( %d bytes hi )#############\n", (apr_size_t) len);
+		fclose(fd);
+#endif
 
         while (ctx->stream.avail_in != 0) {
             if (ctx->stream.avail_out == 0) {
@@ -921,6 +1105,7 @@ static apr_status_t deflate_out_filter(ap_filter_t *f,
             }
 
             zRC = debreach(&(ctx->stream), Z_NO_FLUSH);
+            //zRC = deflate(&(ctx->stream), Z_NO_FLUSH);
 
             if (zRC != Z_OK) {
                 ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(01386)
@@ -996,7 +1181,9 @@ static apr_status_t consume_zlib_flags(deflate_ctx *ctx,
         if (!*len) {
             return APR_INCOMPLETE;
         }
-        /* .. and nul.  --*len;
+        /* .. and nul. */
+        ++*data;
+        --*len;
 
         ctx->zlib_flags &= ~COMMENT;
     }
@@ -1101,7 +1288,8 @@ static apr_status_t deflate_in_filter(ap_filter_t *f,
             bkt = APR_BRIGADE_FIRST(ctx->bb);
             if (APR_BUCKET_IS_EOS(bkt)) {
                 if (ctx->header_len) {
-                    /* If the header was (partially) read it's an errot a gzip Content-Encoding, as claimed.
+                    /* If the header was (partially) read it's an error, this
+                     * is not a gzip Content-Encoding, as claimed.
                      */
                     ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(02619)
                                   "Encountered premature end-of-stream while "
@@ -1197,7 +1385,9 @@ static apr_status_t deflate_in_filter(ap_filter_t *f,
                     ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(02481)
                                   "Encountered premature end-of-stream while inflating");
                     return APR_EGENERAL;
-             ade. */
+                }
+
+                /* Move everything to the returning brigade. */
                 APR_BUCKET_REMOVE(bkt);
                 APR_BRIGADE_INSERT_TAIL(ctx->proc_bb, bkt);
                 break;
@@ -1283,7 +1473,10 @@ static apr_status_t deflate_in_filter(ap_filter_t *f,
             }
 
             /* pass through zlib inflate. */
-            ctx->stream.next_in = (unsigned char *)        zRC = Z_OK;
+            ctx->stream.next_in = (unsigned char *)data;
+            ctx->stream.avail_in = (int)len;
+
+            zRC = Z_OK;
 
             if (!ctx->validation_buffer) {
                 while (ctx->stream.avail_in != 0) {
@@ -1359,7 +1552,8 @@ static apr_status_t deflate_in_filter(ap_filter_t *f,
                     ctx->validation_buffer_length += avail;
                     continue;
                 }
-                memcpy(buf       ctx->stream.next_in, valid);
+                memcpy(buf + ctx->validation_buffer_length,
+                       ctx->stream.next_in, valid);
                 ctx->validation_buffer_length += valid;
 
                 ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(01393)
@@ -1447,7 +1641,8 @@ static apr_status_t deflate_in_filter(ap_filter_t *f,
 }
 
 
-/* Filter to inflate fstatic apr_status_t inflate_out_filter(ap_filter_t *f,
+/* Filter to inflate for a content-transforming proxy.  */
+static apr_status_t inflate_out_filter(ap_filter_t *f,
                                       apr_bucket_brigade *bb)
 {
     apr_bucket *e;
@@ -1549,7 +1744,8 @@ static apr_status_t deflate_in_filter(ap_filter_t *f,
              * ourselves.
              */
             ap_remove_output_filter(f);
-            /* should be zerl_in = 0;
+            /* should be zero already anyway */
+            ctx->stream.avail_in = 0;
             /*
              * Flush the remaining data from the zlib buffers. It is correct
              * to use Z_SYNC_FLUSH in this case and not Z_FINISH as in the
@@ -1626,7 +1822,9 @@ static apr_status_t deflate_in_filter(ap_filter_t *f,
             APR_BRIGADE_INSERT_TAIL(ctx->bb, e);
             rv = ap_pass_brigade(f->next, ctx->bb);
             if (rv != APR_SUCCESS) {
-                    continue;
+                return rv;
+            }
+            continue;
         }
 
         if (APR_BUCKET_IS_METADATA(e)) {
@@ -1724,7 +1922,8 @@ static apr_status_t deflate_in_filter(ap_filter_t *f,
             }
             if (ctx->stream.avail_in) {
                 ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(01407)
-                                          "compressed stream.", ctx->stream.avail_in);
+                              "Zlib: %d bytes of garbage at the end of "
+                              "compressed stream.", ctx->stream.avail_in);
                 /*
                  * There is nothing worth consuming for zlib left, because it is
                  * either garbage data or the data has been copied to the
@@ -1809,7 +2008,8 @@ static int mod_deflate_post_config(apr_pool_t *pconf, apr_pool_t *plog,
 }
 
 
-#define PROTO_FLAGS AP_FILTER_PROTO_CHA_hooks(apr_pool_t *p)
+#define PROTO_FLAGS AP_FILTER_PROTO_CHANGE|AP_FILTER_PROTO_CHANGE_LENGTH
+static void register_hooks(apr_pool_t *p)
 {
     ap_register_output_filter(deflateFilterName, deflate_out_filter, NULL,
                               AP_FTYPE_CONTENT_SET);
@@ -1842,7 +2042,7 @@ static const command_rec deflate_filter_cmds[] = {
     {NULL}
 };
 
-AP_DECLARE_MODULE(deflate) = {
+AP_DECLARE_MODULE(debreach) = {
     STANDARD20_MODULE_STUFF,
     create_deflate_dirconf,       /* dir config creater */
     NULL,                         /* dir merger --- default is to override */
