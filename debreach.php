@@ -6,7 +6,6 @@ function d_echo($data) {
 	echo $data;	
 }
 
-$DEBREACH_DEBUG = False;
 if (!array_key_exists('__DEBREACH_DATA_COUNT', $_REQUEST)) {
 	$_REQUEST['__DEBREACH_DATA_COUNT'] = 0;
 }
@@ -14,6 +13,7 @@ if (!array_key_exists('__DEBREACH_TAINT_BUF', $_REQUEST)) {
 	$_REQUEST['__DEBREACH_TAINT_BUF'] = False;
 }
 function __debreach_filter($data) {
+    $DEBREACH_DEBUG = False;
     //DEBUG
     $SEP_START="\n#################### (";
     $SEP_END=") ##################\n";
