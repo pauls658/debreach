@@ -23,7 +23,7 @@ elif [[ $1 == "debug" ]]; then
 	make
 	make install
 	apxs -i -a -c mod_debreach.c -I/usr/local/include -L/usr/local/lib -ldz -DDEBREACH
-	service apache2 restart
+	service apache2 stop
 else
 	echo "bad!"
 fi
