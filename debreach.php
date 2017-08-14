@@ -13,7 +13,7 @@ if (!array_key_exists('__DEBREACH_TAINT_BUF', $_REQUEST)) {
 	$_REQUEST['__DEBREACH_TAINT_BUF'] = False;
 }
 function __debreach_filter($data) {
-	$DEBREACH_DEBUG = False;
+    $DEBREACH_DEBUG = False;
     //DEBUG
     $SEP_START="\n#################### (";
     $SEP_END=") ##################\n";
