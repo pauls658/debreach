@@ -11,7 +11,7 @@ if [[ $1 == "lib" ]]; then
 	make clean
 	make
 	make install
-	apxs -i -a -c mod_debreach.c -I/usr/local/include -L/usr/local/lib -ldz -DDEBREACH
+	apxs -i -a -c mod_deflate.c -I/usr/local/include -L/usr/local/lib -ldz -DDEBREACH
 	service apache2 restart
 elif [[ $1 == "validation" ]]; then
 	cp Makefiles/validation_Makefile Makefile
@@ -22,7 +22,7 @@ elif [[ $1 == "debug" ]]; then
 	make clean
 	make
 	make install
-	apxs -i -a -c mod_debreach.c -I/usr/local/include -L/usr/local/lib -ldz -DDEBREACH
+	apxs -i -a -c mod_deflate.c -I/usr/local/include -L/usr/local/lib -ldz -DDEBREACH
 	service apache2 stop
 else
 	echo "bad!"
