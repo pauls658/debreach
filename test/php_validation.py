@@ -4,6 +4,8 @@ import math
 import pycurl
 import shutil
 import filecmp
+import time
+from prettytable import PrettyTable
 from StringIO import StringIO
 
 class TestCase(object):
@@ -24,6 +26,7 @@ class TestCase(object):
         self.file_name = data_file.split("/")[-1]
         # the path to the file on the server
         self.resource_path = TestCase.SERVER_ROOT + "/" + self.file_name + ".php"
+        self.zlib_resource_path = TestCase.SERVER_ROOT + "/zlib_" + self.file_name + ".php"
         # the tainted byte ranges
         self.brs = brs
         #ugh
@@ -48,6 +51,26 @@ class TestCase(object):
             for i in range(0,len(self.brs), 2):
                 out_fd.write(buf[self.brs[i]:self.brs[i+1]+1])
                 out_fd.write("\n############################ ( %d - %d ) #########################\n" % (self.brs[i], self.brs[i+1]))
+    
+    @staticmethod
+    def favg(arr):
+        return math.fsum(arr) / float(len(arr))
+
+    def run_resp_time_bench(self):
+        self.make_php_debreach_file()
+        zlib_url = "http://%s/%s" % (TestCase.SERVER_NAME, self.zlib_resource_path)
+        zlib_results = self.run_benchmark_on_url(zlib_url, 100)
+        
+        debreach_url = "http://%s/%s" % (TestCase.SERVER_NAME, self.resource_path)
+        debreach_results = self.run_benchmark_on_url(debreach_url, 100)
+
+        table = PrettyTable(["metric", "zlib", "debreach"])
+        for key in debreach_results[0].keys():
+            d_avg = self.favg([item[key] for item in debreach_results])
+            z_avg = self.favg([item[key] for item in zlib_results])
+            table.add_row([key, str(z_avg), str(d_avg)])
+
+        print table
 
 
     def run_validation(self):
@@ -128,6 +151,34 @@ class TestCase(object):
         if not TestCase.validate_sec_brs(self.brs_tuples, self.brs_file):
             raise Exception("Validation test failed. Leaving files for debugging")
 
+    def run_benchmark_on_url(self, url, iters):
+        req_headers = ["Accept-Encoding: gzip",
+                "Cache-Control: no-cache, no-store, must-revalidate",
+                "Pragma: no-cache",
+                "Expires: 0"]
+        c = pycurl.Curl()
+        c.setopt(c.URL, url)
+        c.setopt(c.HTTPHEADER, req_headers)
+        c.setopt(c.WRITEFUNCTION, lambda x: None)
+        # burn one request
+        c.perform()
+        c.close()
+        indiv_results = []
+        for i in range(iters):
+            c = pycurl.Curl()
+            c.setopt(c.URL, url)
+            c.setopt(c.HTTPHEADER, req_headers)
+            c.setopt(c.WRITEFUNCTION, lambda x: None)
+            c.perform()
+            result = {
+                    "total_time" : c.getinfo(pycurl.TOTAL_TIME),
+                    "first_byte" : c.getinfo(pycurl.STARTTRANSFER_TIME)
+                    }
+            c.close()
+            indiv_results.append(result)
+            time.sleep(0.001)
+        return indiv_results
+
     def curl_from_server(self):
         headers = {}
         def header_function(header_line):
@@ -188,8 +239,7 @@ class TestCase(object):
 
     def make_php_debreach_file(self):
         self.php_fp = TestCase.APACHE_DIR + "/" + self.resource_path
-        self.zlib_php_fp = TestCase.APACHE_DIR + "/" + \
-                TestCase.SERVER_ROOT + "/zlib_" + self.file_name + ".php"
+        self.zlib_php_fp = TestCase.APACHE_DIR + "/" + self.zlib_resource_path
         file_buf = open(self.data_file, "rb").read()
         debreach_tmp = TestCase.TMP_DIR + "/debreach_tmp.php"
         zlib_tmp = TestCase.TMP_DIR + "/zlib_tmp.php"
@@ -325,4 +375,4 @@ if __name__ == "__main__":
     pre_cleaning()
     TCMker = TestCaseMaker("input")
     test_case = TCMker.real_testcase()
-    test_case.make_php_debreach_file()
+    test_case.run_resp_time_bench()
