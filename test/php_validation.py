@@ -12,7 +12,7 @@ class TestCase(object):
     SERVER_ROOT = "debreach_validation"
     SERVER_NAME = "node1"
     TMP_DIR = "/tmp" + "/" + SERVER_ROOT
-    SPECIAL_DECOMP = "/home/umdsectb/blib-better-validate/minigzip"
+    SPECIAL_DECOMP = "/users/umdsectb/blib-better-validate/minigzip"
     """
     @param data_file type:string the path to the data file
     @param brs type:list of ints
@@ -50,8 +50,8 @@ class TestCase(object):
                 out_fd.write("\n############################ ( %d - %d ) #########################\n" % (self.brs[i], self.brs[i+1]))
 
 
-    def run(self):
-        self.make_php_file()
+    def run_validation(self):
+        self.make_php_debreach_file()
         self.curl_from_server()
         self.validate()
 
@@ -186,36 +186,44 @@ class TestCase(object):
                 string.replace("\\", "\\\\").replace("'", "\\'") + \
                 "'"
 
-    def make_php_file(self):
+    def make_php_debreach_file(self):
         self.php_fp = TestCase.APACHE_DIR + "/" + self.resource_path
+        self.zlib_php_fp = TestCase.APACHE_DIR + "/" + \
+                TestCase.SERVER_ROOT + "/zlib_" + self.file_name + ".php"
         file_buf = open(self.data_file, "rb").read()
-        tmp = TestCase.TMP_DIR + "/tmp.php"
-        with open(tmp, "wb+") as out_fd:
+        debreach_tmp = TestCase.TMP_DIR + "/debreach_tmp.php"
+        zlib_tmp = TestCase.TMP_DIR + "/zlib_tmp.php"
+        with open(debreach_tmp, "wb+") as out_debreach_fd, open(zlib_tmp, "wb+") as out_zlib_fd:
+            # first create the zlib file
+            out_zlib_fd.write("<?php\necho " + self.php_lit_string(file_buf) + ";\n?>")
+
             tainted = False
             start = 0
-            out_fd.write("<?php\n require_once(\"debreach.php\");\n")
-            # TODO: brs overlap  and content is written twice
+            out_debreach_fd.write("<?php\n require_once(\"debreach.php\");\n")
             for i in range(len(self.brs)):
                 end = self.brs[i]
                 if tainted:
-                    out_fd.write(TestCase.DEBREACH_FNC + "(" + \
+                    out_debreach_fd.write(TestCase.DEBREACH_FNC + "(" + \
                             self.php_lit_string(file_buf[start:end + 1]) + \
                             ");\n")
                     start = end + 1
                 else:
                     # file_buf[end] is tainted
-                    out_fd.write("echo " + \
+                    out_debreach_fd.write("echo " + \
                             self.php_lit_string(file_buf[start:end]) + \
                             ";\n")
                     start = end 
                 tainted = not tainted
             # finish it off
-            out_fd.write("echo " + \
+            out_debreach_fd.write("echo " + \
                     self.php_lit_string(file_buf[start:len(file_buf)]) + ";\n")
-            out_fd.write("?>")
-        os.system("scp %s %s:%s" % (tmp, TestCase.SERVER_NAME, self.php_fp))
-        os.remove(tmp)
+            out_debreach_fd.write("?>")
+        os.system("scp %s %s:%s" % (debreach_tmp, TestCase.SERVER_NAME, self.php_fp))
+        os.system("scp %s %s:%s" % (zlib_tmp, TestCase.SERVER_NAME, self.zlib_php_fp))
+        os.remove(debreach_tmp)
+        os.remove(zlib_tmp)
         self.created_files.append(self.php_fp)
+        self.created_files.append(self.zlib_php_fp)
                 
 class TestCaseMaker(object):
     """ A class for making these dumb ole files of random junk."""
@@ -314,4 +322,7 @@ def retest():
     tc.run()
 
 if __name__ == "__main__":
-    while True: random_testcase()
+    pre_cleaning()
+    TCMker = TestCaseMaker("input")
+    test_case = TCMker.real_testcase()
+    test_case.make_php_debreach_file()
