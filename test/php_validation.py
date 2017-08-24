@@ -4,6 +4,8 @@ import math
 import pycurl
 import shutil
 import filecmp
+import time
+from prettytable import PrettyTable
 from StringIO import StringIO
 
 class TestCase(object):
@@ -12,7 +14,7 @@ class TestCase(object):
     SERVER_ROOT = "debreach_validation"
     SERVER_NAME = "node1"
     TMP_DIR = "/tmp" + "/" + SERVER_ROOT
-    SPECIAL_DECOMP = "/home/umdsectb/blib-better-validate/minigzip"
+    SPECIAL_DECOMP = "/users/umdsectb/blib-better-validate/minigzip"
     """
     @param data_file type:string the path to the data file
     @param brs type:list of ints
@@ -24,6 +26,7 @@ class TestCase(object):
         self.file_name = data_file.split("/")[-1]
         # the path to the file on the server
         self.resource_path = TestCase.SERVER_ROOT + "/" + self.file_name + ".php"
+        self.zlib_resource_path = TestCase.SERVER_ROOT + "/zlib_" + self.file_name + ".php"
         # the tainted byte ranges
         self.brs = brs
         #ugh
@@ -48,10 +51,38 @@ class TestCase(object):
             for i in range(0,len(self.brs), 2):
                 out_fd.write(buf[self.brs[i]:self.brs[i+1]+1])
                 out_fd.write("\n############################ ( %d - %d ) #########################\n" % (self.brs[i], self.brs[i+1]))
+    
+    @staticmethod
+    def favg(arr):
+        return math.fsum(arr) / float(len(arr))
+
+    def run_resp_time_bench(self, iters):
+        self.make_php_debreach_file()
+        os.system('ssh node1 "sudo a2enmod -f debreach; sudo a2dismod -f deflate; sudo service apache2 restart"')
+        time.sleep(1)
+        debreach_url = "http://%s/%s" % (TestCase.SERVER_NAME, self.resource_path)
+        debreach_results = self.run_benchmark_on_url(debreach_url, iters)
+        debreach_times = debreach_results["timings"]
+
+        os.system('ssh node1 "sudo a2dismod -f debreach; sudo a2enmod -f deflate; sudo service apache2 restart"')
+        time.sleep(1)
+        zlib_url = "http://%s/%s" % (TestCase.SERVER_NAME, self.zlib_resource_path)
+        zlib_results = self.run_benchmark_on_url(zlib_url, iters)
+        zlib_times = zlib_results["timings"]
+ 
+        table = PrettyTable(["metric", "zlib", "debreach"])
+        for key in debreach_times[0].keys():
+            d_avg = self.favg([item[key] for item in debreach_times])
+            z_avg = self.favg([item[key] for item in zlib_times])
+            table.add_row([key, str(z_avg), str(d_avg)])
+        for key in filter(lambda x: "timings" not in x, debreach_results.keys()):
+            table.add_row([key, str(zlib_results[key]), str(debreach_results[key])])
+
+        print table
 
 
-    def run(self):
-        self.make_php_file()
+    def run_validation(self):
+        self.make_php_debreach_file()
         self.curl_from_server()
         self.validate()
 
@@ -128,6 +159,47 @@ class TestCase(object):
         if not TestCase.validate_sec_brs(self.brs_tuples, self.brs_file):
             raise Exception("Validation test failed. Leaving files for debugging")
 
+    def run_benchmark_on_url(self, url, iters):
+        req_headers = ["Accept-Encoding: gzip",
+                "Cache-Control: no-cache, no-store, must-revalidate",
+                "Pragma: no-cache",
+                "Expires: 0"]
+        c = pycurl.Curl()
+        c.setopt(c.URL, url)
+        c.setopt(c.HTTPHEADER, req_headers)
+        global size
+        size = 0
+        def count_size(x):
+            global size
+            size += len(x)
+        c.setopt(c.WRITEFUNCTION, count_size)
+        size = float(size)
+        # burn one request
+        c.perform()
+        c.close()
+        indiv_results = []
+        for i in range(iters):
+            c = pycurl.Curl()
+            c.setopt(c.URL, url)
+            c.setopt(c.HTTPHEADER, req_headers)
+            c.setopt(c.WRITEFUNCTION, lambda x: None)
+            c.perform()
+            result = {
+                    "total_time" : c.getinfo(pycurl.TOTAL_TIME),
+                    "first_byte" : c.getinfo(pycurl.STARTTRANSFER_TIME)
+                    }
+            result["xfer_rate"] = size / float(result["total_time"] - result["first_byte"])
+            c.close()
+            indiv_results.append(result)
+            time.sleep(0.001)
+        orig_size = os.path.getsize(self.data_file)
+        return {
+                "orig_size" : orig_size,
+                "comp_size" : size,
+                "comp_ratio" : float(size)/float(orig_size),
+                "timings" : indiv_results
+                }
+
     def curl_from_server(self):
         headers = {}
         def header_function(header_line):
@@ -186,37 +258,75 @@ class TestCase(object):
                 string.replace("\\", "\\\\").replace("'", "\\'") + \
                 "'"
 
-    def make_php_file(self):
+    def make_php_debreach_file(self):
         self.php_fp = TestCase.APACHE_DIR + "/" + self.resource_path
+        self.zlib_php_fp = TestCase.APACHE_DIR + "/" + self.zlib_resource_path
         file_buf = open(self.data_file, "rb").read()
-        tmp = TestCase.TMP_DIR + "/tmp.php"
-        with open(tmp, "wb+") as out_fd:
+        debreach_tmp = TestCase.TMP_DIR + "/debreach_tmp.php"
+        zlib_tmp = TestCase.TMP_DIR + "/zlib_tmp.php"
+        with open(debreach_tmp, "wb+") as out_debreach_fd, open(zlib_tmp, "wb+") as out_zlib_fd:
+            # first create the zlib file
+            #out_zlib_fd.write("<?php\necho " + self.php_lit_string(file_buf) + ";\n?>")
+
             tainted = False
             start = 0
-            out_fd.write("<?php\n require_once(\"debreach.php\");\n")
-            # TODO: brs overlap  and content is written twice
+            out_debreach_fd.write("<?php\n require_once(\"debreach.php\");\n")
+            out_zlib_fd.write("<?php\n")
             for i in range(len(self.brs)):
                 end = self.brs[i]
                 if tainted:
-                    out_fd.write(TestCase.DEBREACH_FNC + "(" + \
+                    out_debreach_fd.write(TestCase.DEBREACH_FNC + "(" + \
                             self.php_lit_string(file_buf[start:end + 1]) + \
                             ");\n")
+                    out_zlib_fd.write("echo " + \
+                            self.php_lit_string(file_buf[start:end + 1]) + \
+                            ";\n")
                     start = end + 1
                 else:
                     # file_buf[end] is tainted
-                    out_fd.write("echo " + \
+                    out_debreach_fd.write("echo " + \
+                            self.php_lit_string(file_buf[start:end]) + \
+                            ";\n")
+                    out_zlib_fd.write("echo " + \
                             self.php_lit_string(file_buf[start:end]) + \
                             ";\n")
                     start = end 
                 tainted = not tainted
             # finish it off
-            out_fd.write("echo " + \
+            out_debreach_fd.write("echo " + \
                     self.php_lit_string(file_buf[start:len(file_buf)]) + ";\n")
-            out_fd.write("?>")
-        os.system("scp %s %s:%s" % (tmp, TestCase.SERVER_NAME, self.php_fp))
-        os.remove(tmp)
+            out_debreach_fd.write("?>")
+            out_zlib_fd.write("echo " + \
+                    self.php_lit_string(file_buf[start:len(file_buf)]) + ";\n")
+            out_zlib_fd.write("?>")
+        os.system("scp %s %s:%s" % (debreach_tmp, TestCase.SERVER_NAME, self.php_fp))
+        os.system("scp %s %s:%s" % (zlib_tmp, TestCase.SERVER_NAME, self.zlib_php_fp))
+        os.remove(debreach_tmp)
+        os.remove(zlib_tmp)
         self.created_files.append(self.php_fp)
-                
+        self.created_files.append(self.zlib_php_fp)
+
+def get_files_with_file_size(dirname, reverse=False):
+    """ Return list of file paths in directory sorted by file size """
+
+    # Get list of files
+    filepaths = []
+    for basename in os.listdir(dirname):
+        filename = os.path.join(dirname, basename)
+        if os.path.isfile(filename):
+            filepaths.append(filename)
+
+    # Re-populate list with filename, size tuples
+    for i in xrange(len(filepaths)):
+        filepaths[i] = (filepaths[i], os.path.getsize(filepaths[i]))
+
+    # Sort list by file size
+    # If reverse=True sort from largest to smallest
+    # If reverse=False sort from smallest to largest
+    filepaths.sort(key=lambda filename: filename[1], reverse=reverse)
+
+    return filepaths
+
 class TestCaseMaker(object):
     """ A class for making these dumb ole files of random junk."""
 
@@ -238,7 +348,29 @@ class TestCaseMaker(object):
         size = os.path.getsize(real_file)
         brs = self.random_brs(size)
         return TestCase(real_file, brs)
-    
+
+    def html_by_size(self, size):
+        """
+        Gets the html file that is closest to but not less than size.
+        """
+        filename = None
+        files = filter(lambda x: "html" in x[0], get_files_with_file_size(self.data_dir, reverse=True))
+
+        if files[0][1] < size:
+            filename = files[0][0]
+        else:
+            i = 0
+            while i < len(files):
+                if files[i][1] < size:
+                    i -= 1
+                    break
+                else:
+                    i += 1
+            filename = files[i][0]
+
+        brs = self.random_brs(size)
+        return TestCase(filename, brs)
+
     @staticmethod
     def delete_overlaps(brs):
         if len(brs) == 2:
@@ -305,13 +437,19 @@ def random_testcase():
     pre_cleaning()
     TCMker = TestCaseMaker("input")
     test_case = TCMker.real_testcase()
-    test_case.run()
+    test_case.run_validation()
 
 def retest():
     pre_cleaning()
     tc = TestCase("input/facebook_text_css_22",
             [366,556,1691,1722,4312,4513,5903,6165,8732,8911,9996,10168,10883,11153,11943,11962,12163,12176,14627,14971,16862,17039,18097,18276,18659,18687,18753,19019,20701,20855,20875,20888,21575,21673,22012,22083,24098,24305,25400,25529,25617,25854,33271,33500,35336,35391,37592,37763,38691,38778,40047,40147,40911,41043,42434,42677,43828,44054,44077,44107,44880,45134,45804,45956,46275,46325,50315,50389,50566,50744,53183,53358,55059,55121,57099,57163,57705,57731])
     tc.run()
+
+def bench():
+    pre_cleaning()
+    TCMker = TestCaseMaker("input")
+    test_case = TCMker.html_by_size(200000)
+    test_case.run_resp_time_bench(1000)
 
 if __name__ == "__main__":
     while True: random_testcase()
