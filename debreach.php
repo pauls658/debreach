@@ -1,19 +1,27 @@
 <?php
-ini_set('display_errors', 1); error_reporting(E_ALL);
+$DEBREACH_DEBUG = False;
+if ($DEBREACH_DEBUG) {
+	ini_set('display_errors', 1); error_reporting(E_ALL);
+}
+
+// request state variables
+if (!isset($__DEBREACH_BUF_TAINTED)) {
+	$__DEBREACH_BUF_TAINTED = False; // Is the data in __debreach_filter() tainted
+}
+if (!isset($__DEBREACH_DATA_COUNT)) {
+	$__DEBREACH_DATA_COUNT = 0; // The total number of bytes echo'd so far
+}
 
 function d_echo($data) {
-	$_REQUEST['__DEBREACH_TAINT_BUF'] = True;
+	global $__DEBREACH_BUF_TAINTED;
+	$__DEBREACH_BUF_TAINTED = True;
 	echo $data;	
 }
 
-if (!array_key_exists('__DEBREACH_DATA_COUNT', $_REQUEST)) {
-	$_REQUEST['__DEBREACH_DATA_COUNT'] = 0;
-}
-if (!array_key_exists('__DEBREACH_TAINT_BUF', $_REQUEST)) {
-	$_REQUEST['__DEBREACH_TAINT_BUF'] = False;
-}
 function __debreach_filter($data) {
-    $DEBREACH_DEBUG = False;
+	// request state variables
+	global $DEBREACH_DEBUG, $__DEBREACH_BUF_TAINTED, $__DEBREACH_DATA_COUNT;
+
     //DEBUG
     $SEP_START="\n#################### (";
     $SEP_END=") ##################\n";
@@ -24,26 +32,20 @@ function __debreach_filter($data) {
 	// characters, which is what we want
 
 	if ($DEBREACH_DEBUG && strlen($data) == 0) {
-		// respose data ended. Put comment w/ data count if we are debugging
+		// no data means respose ended. Put comment w/ data count if we are debugging
 		$beg = "<!-- Data count: ";
 		$end = " -->";
-		$_REQUEST['__DEBREACH_DATA_COUNT'] += strlen($beg) + strlen($end) +
-			strlen($_REQUEST['__DEBREACH_DATA_COUNT']);
+		$__DEBREACH_DATA_COUNT += strlen($beg) + strlen($end) +
+			strlen($__DEBREACH_DATA_COUNT);
 		// if the daata count tips to the the next multiple of 10, the count will
 		// be off by one in the comment
-		return $beg . $_REQUEST['__DEBREACH_DATA_COUNT'] . $end;
+		return $beg . $__DEBREACH_DATA_COUNT . $end;
 	}
 
-	if ($_REQUEST['__DEBREACH_TAINT_BUF']) {
-		$cur_byte = $_REQUEST['__DEBREACH_DATA_COUNT'];
-		$cur_brs = apache_note("__DEBREACH_BRS");
-		if ($cur_brs) {
-			// there was already some data
-			apache_note("__DEBREACH_BRS", $cur_brs . "," . $cur_byte . "," . ($cur_byte + strlen($data) - 1));
-		} else {
-			apache_note("__DEBREACH_BRS", $cur_byte . "," . ($cur_byte + strlen($data) - 1));
-		} 
-		$_REQUEST['__DEBREACH_TAINT_BUF'] = False;
+	if ($__DEBREACH_BUF_TAINTED) {
+		$cur_byte = $__DEBREACH_DATA_COUNT;
+		taint_brs($cur_byte, ($cur_byte + strlen($data) - 1));
+		// make our local variables accessible to apache
 
 		if ($DEBREACH_DEBUG) {
     		$debug_file = fopen($TAINTED_STR_FILE, "a+");
@@ -56,7 +58,7 @@ function __debreach_filter($data) {
 		}
 	}
 
-	$_REQUEST['__DEBREACH_DATA_COUNT'] += strlen($data);
+	$__DEBREACH_DATA_COUNT += strlen($data);
 	return $data;
 }
 // set chunk_size = 1 so buffer flushes on each echo call
