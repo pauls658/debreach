@@ -1,5 +1,5 @@
-debreach.lo: /home/pauls658/debreach_module/debreach.c
-	$(LIBTOOL) --mode=compile $(CC)  -I. -I/home/pauls658/debreach_module $(COMMON_FLAGS) $(CFLAGS_CLEAN) $(EXTRA_CFLAGS)  -c /home/pauls658/debreach_module/debreach.c -o debreach.lo 
+debreach.lo: /home/brandon/blib-better/debreach_module/debreach.c
+	$(LIBTOOL) --mode=compile $(CC)  -I. -I/home/brandon/blib-better/debreach_module $(COMMON_FLAGS) $(CFLAGS_CLEAN) $(EXTRA_CFLAGS)  -c /home/brandon/blib-better/debreach_module/debreach.c -o debreach.lo 
 $(phplibdir)/debreach.la: ./debreach.la
 	$(LIBTOOL) --mode=install cp ./debreach.la $(phplibdir)
 

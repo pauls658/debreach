@@ -829,6 +829,7 @@ infodir
 docdir
 oldincludedir
 includedir
+runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -910,6 +911,7 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
+runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE}'
@@ -1162,6 +1164,15 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
+  -runstatedir | --runstatedir | --runstatedi | --runstated \
+  | --runstate | --runstat | --runsta | --runst | --runs \
+  | --run | --ru | --r)
+    ac_prev=runstatedir ;;
+  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
+  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
+  | --run=* | --ru=* | --r=*)
+    runstatedir=$ac_optarg ;;
+
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1299,7 +1310,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir
+		libdir localedir mandir runstatedir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -1452,6 +1463,7 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
+  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -4221,6 +4233,77 @@ if test "$PHP_DEBREACH" = "yes"; then
   fi
 
 
+  for ac_i in "-L/usr/local/apache2/modules -l:mod_debreach.so"; do
+    case $ac_i in
+    -pthread)
+      if test "$ext_shared" = "yes"; then
+        ="$ -pthread"
+      else
+
+
+  unique=`echo $ac_i|$SED 's/[^a-zA-Z0-9]/_/g'`
+
+  cmd="echo $ac_n \"\$EXTRA_LDFLAGS$unique$ac_c\""
+  if test -n "$unique" && test "`eval $cmd`" = "" ; then
+    eval "EXTRA_LDFLAGS$unique=set"
+    EXTRA_LDFLAGS="$EXTRA_LDFLAGS $ac_i"
+  fi
+
+      fi
+    ;;
+    -l*)
+      ac_ii=`echo $ac_i|cut -c 3-`
+
+
+  case $ac_ii in
+  c|c_r|pthread*) ;;
+  *)
+      LIBS="$LIBS -l$ac_ii"
+   ;;
+  esac
+
+
+    ;;
+    -L*)
+      ac_ii=`echo $ac_i|cut -c 3-`
+
+  if test "$ac_ii" != "/usr/$PHP_LIBDIR" && test "$ac_ii" != "/usr/lib"; then
+
+  if test -z "$ac_ii" || echo "$ac_ii" | grep '^/' >/dev/null ; then
+    ai_p=$ac_ii
+  else
+
+    ep_dir=`echo $ac_ii|$SED 's%/*[^/][^/]*/*$%%'`
+
+    ep_realdir=`(cd "$ep_dir" && pwd)`
+    ai_p="$ep_realdir"/`basename "$ac_ii"`
+  fi
+
+
+
+
+
+  unique=`echo $ai_p|$SED 's/[^a-zA-Z0-9]/_/g'`
+
+  cmd="echo $ac_n \"\$LIBPATH$unique$ac_c\""
+  if test -n "$unique" && test "`eval $cmd`" = "" ; then
+    eval "LIBPATH$unique=set"
+
+    test -n "$ld_runpath_switch" && LDFLAGS="$LDFLAGS $ld_runpath_switch$ai_p"
+    LDFLAGS="$LDFLAGS -L$ai_p"
+    PHP_RPATHS="$PHP_RPATHS $ai_p"
+
+  fi
+
+
+
+  fi
+
+    ;;
+    esac
+  done
+
+
 
 $as_echo "#define HAVE_DEBREACH 1" >>confdefs.h
 
@@ -5028,7 +5111,7 @@ ia64-*-hpux*)
   ;;
 *-*-irix6*)
   # Find out which ABI we are using.
-  echo '#line 5031 "configure"' > conftest.$ac_ext
+  echo '#line 5114 "configure"' > conftest.$ac_ext
   if { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_compile\""; } >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -6436,7 +6519,7 @@ else
       LDFLAGS="$LDFLAGS -Wl,-exported_symbols_list,conftest.sym"
 
 cat > conftest.$ac_ext <<EOF
-#line 6439 "configure"
+#line 6522 "configure"
 #include "confdefs.h"
 int main() {
 ; return 0; }
@@ -6594,11 +6677,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"configure:6597: $lt_compile\"" >&5)
+   (eval echo "\"configure:6680: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "configure:6601: \$? = $ac_status" >&5
+   echo "configure:6684: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -6892,11 +6975,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"configure:6895: $lt_compile\"" >&5)
+   (eval echo "\"configure:6978: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "configure:6899: \$? = $ac_status" >&5
+   echo "configure:6982: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -6996,11 +7079,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"configure:6999: $lt_compile\"" >&5)
+   (eval echo "\"configure:7082: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "configure:7003: \$? = $ac_status" >&5
+   echo "configure:7086: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -7460,7 +7543,7 @@ _LT_EOF
        # Determine the default libpath from the value encoded in an empty executable.
 
 cat > conftest.$ac_ext <<EOF
-#line 7463 "configure"
+#line 7546 "configure"
 #include "confdefs.h"
 int main() {
 ; return 0; }
@@ -7502,7 +7585,7 @@ if test -z "$aix_libpath"; then aix_libpath="/usr/lib:/lib"; fi
 	 # Determine the default libpath from the value encoded in an empty executable.
 
 cat > conftest.$ac_ext <<EOF
-#line 7505 "configure"
+#line 7588 "configure"
 #include "confdefs.h"
 int main() {
 ; return 0; }
@@ -9019,7 +9102,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 9022 "configure"
+#line 9105 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -9119,7 +9202,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 9122 "configure"
+#line 9205 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -10184,7 +10267,7 @@ case $host_os in
       # Determine the default libpath from the value encoded in an empty executable.
 
 cat > conftest.$ac_ext <<EOF
-#line 10187 "configure"
+#line 10270 "configure"
 #include "confdefs.h"
 int main() {
 ; return 0; }
@@ -10227,7 +10310,7 @@ if test -z "$aix_libpath"; then aix_libpath="/usr/lib:/lib"; fi
 	# Determine the default libpath from the value encoded in an empty executable.
 
 cat > conftest.$ac_ext <<EOF
-#line 10230 "configure"
+#line 10313 "configure"
 #include "confdefs.h"
 int main() {
 ; return 0; }
@@ -11479,11 +11562,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"configure:11482: $lt_compile\"" >&5)
+   (eval echo "\"configure:11565: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "configure:11486: \$? = $ac_status" >&5
+   echo "configure:11569: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -11583,11 +11666,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"configure:11586: $lt_compile\"" >&5)
+   (eval echo "\"configure:11669: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "configure:11590: \$? = $ac_status" >&5
+   echo "configure:11673: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized

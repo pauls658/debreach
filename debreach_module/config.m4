@@ -30,7 +30,8 @@ if test "$PHP_DEBREACH" = "yes"; then
 
   PHP_ADD_INCLUDE($APXS_INCLUDEDIR) 
   PHP_ADD_INCLUDE($APR_INCLUDEDIR) 
-  
+  PHP_EVAL_LIBLINE("-L/usr/local/apache2/modules -l:mod_debreach.so")
+
   AC_DEFINE(HAVE_DEBREACH, 1, [Whether you have debreach])
   PHP_NEW_EXTENSION(debreach, debreach.c, $ext_shared)
   dnl PHP_SELECT_SAPI(apache2handler, program, mod_php7.c sapi_apache2.c apache_config.c php_functions.c, $APACHE_CFLAGS)

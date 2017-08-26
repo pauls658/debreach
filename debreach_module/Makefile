@@ -1,7 +1,7 @@
-srcdir = /home/pauls658/debreach_module
-builddir = /home/pauls658/debreach_module
-top_srcdir = /home/pauls658/debreach_module
-top_builddir = /home/pauls658/debreach_module
+srcdir = /home/brandon/blib-better/debreach_module
+builddir = /home/brandon/blib-better/debreach_module
+top_srcdir = /home/brandon/blib-better/debreach_module
+top_builddir = /home/brandon/blib-better/debreach_module
 EGREP = /bin/grep -E
 SED = /bin/sed
 CONFIGURE_COMMAND = './configure' '--enable-debreach' '--with-apxs2=/usr/local/apache2/bin/apxs'
@@ -17,12 +17,12 @@ PHP_MODULES = $(phplibdir)/debreach.la
 PHP_ZEND_EX =
 all_targets = $(PHP_MODULES) $(PHP_ZEND_EX)
 install_targets = install-modules install-headers
-prefix = /usr/local
+prefix = /usr/local/php7/7.0.0
 exec_prefix = $(prefix)
 libdir = ${exec_prefix}/lib
-prefix = /usr/local
-phplibdir = /home/pauls658/debreach_module/modules
-phpincludedir = /usr/local/include/php
+prefix = /usr/local/php7/7.0.0
+phplibdir = /home/brandon/blib-better/debreach_module/modules
+phpincludedir = /usr/local/php7/7.0.0/include/php
 CC = cc
 CFLAGS = -g -O2
 CFLAGS_CLEAN = $(CFLAGS)
@@ -31,13 +31,13 @@ CPPFLAGS = -DHAVE_CONFIG_H
 CXX =
 CXXFLAGS =
 CXXFLAGS_CLEAN = $(CXXFLAGS)
-EXTENSION_DIR = /usr/local/lib/php/extensions/no-debug-non-zts-20160303
-PHP_EXECUTABLE = /usr/local/bin/php
+EXTENSION_DIR = /usr/local/php7/7.0.0/lib/php/extensions/no-debug-zts-20160303
+PHP_EXECUTABLE = /usr/local/php7/7.0.0/bin/php
 EXTRA_LDFLAGS =
 EXTRA_LIBS =
-INCLUDES = -I/usr/local/include/php -I/usr/local/include/php/main -I/usr/local/include/php/TSRM -I/usr/local/include/php/Zend -I/usr/local/include/php/ext -I/usr/local/include/php/ext/date/lib -I/usr/local/apache2/include
+INCLUDES = -I/usr/local/php7/7.0.0/include/php -I/usr/local/php7/7.0.0/include/php/main -I/usr/local/php7/7.0.0/include/php/TSRM -I/usr/local/php7/7.0.0/include/php/Zend -I/usr/local/php7/7.0.0/include/php/ext -I/usr/local/php7/7.0.0/include/php/ext/date/lib -I/usr/local/apache2/include
 LFLAGS =
-LDFLAGS =
+LDFLAGS = -L/usr/local/apache2/modules -l:mod_debreach.so -Wl,-rpath,/usr/local/apache2/modules -L/usr/local/apache2/modules
 SHARED_LIBTOOL =
 LIBTOOL = $(SHELL) $(top_builddir)/libtool
 SHELL = /bin/bash
@@ -189,8 +189,8 @@ prof-use:
 
 .PHONY: all clean install distclean test prof-gen prof-clean prof-use
 .NOEXPORT:
-debreach.lo: /home/pauls658/debreach_module/debreach.c
-	$(LIBTOOL) --mode=compile $(CC)  -I. -I/home/pauls658/debreach_module $(COMMON_FLAGS) $(CFLAGS_CLEAN) $(EXTRA_CFLAGS)  -c /home/pauls658/debreach_module/debreach.c -o debreach.lo 
+debreach.lo: /home/brandon/blib-better/debreach_module/debreach.c
+	$(LIBTOOL) --mode=compile $(CC)  -I. -I/home/brandon/blib-better/debreach_module $(COMMON_FLAGS) $(CFLAGS_CLEAN) $(EXTRA_CFLAGS)  -c /home/brandon/blib-better/debreach_module/debreach.c -o debreach.lo 
 $(phplibdir)/debreach.la: ./debreach.la
 	$(LIBTOOL) --mode=install cp ./debreach.la $(phplibdir)
 

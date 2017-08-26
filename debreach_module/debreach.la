@@ -14,7 +14,7 @@ library_names='debreach.so debreach.so debreach.so'
 old_library=''
 
 # Libraries that this one depends upon.
-dependency_libs=''
+dependency_libs=' -L/usr/local/apache2/modules -l:mod_debreach.so'
 
 # Version information for debreach.
 current=0
@@ -32,4 +32,4 @@ dlopen=''
 dlpreopen=''
 
 # Directory that this library needs to be installed in:
-libdir='/home/pauls658/debreach_module/modules'
+libdir='/home/brandon/blib-better/debreach_module/modules'

@@ -44,8 +44,11 @@ function __debreach_filter($data) {
 
 	if ($__DEBREACH_BUF_TAINTED) {
 		$cur_byte = $__DEBREACH_DATA_COUNT;
-		taint_brs($cur_byte, ($cur_byte + strlen($data) - 1));
-		// make our local variables accessible to apache
+		$ret = taint_brs($cur_byte, ($cur_byte + strlen($data) - 1));
+		if ($ret != true) {
+			error_log($ret);
+		}
+		$__DEBREACH_BUF_TAINTED = False;
 
 		if ($DEBREACH_DEBUG) {
     		$debug_file = fopen($TAINTED_STR_FILE, "a+");
