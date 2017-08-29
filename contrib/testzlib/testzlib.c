@@ -195,7 +195,7 @@ int main(int argc, char *argv[])
         long lOrigDone = 0;
         int step=0;
         memset(&zcpr,0,sizeof(z_stream));
-        deflateInit(&zcpr,cprLevel);
+        debreachInit(&zcpr,cprLevel);
 
         zcpr.next_in = FilePtr;
         zcpr.next_out = CprPtr;
@@ -213,7 +213,7 @@ int main(int argc, char *argv[])
         } while (ret==Z_OK);
 
         lSizeCpr=zcpr.total_out;
-        deflateEnd(&zcpr);
+        debreachEnd(&zcpr);
         dwGetTick=GetTickCount()-dwGetTick;
         dwMsecQP=GetMsecSincePerfCounter(li_qp,TRUE);
         dwResRdtsc=GetResRdtsc(li_rdtsc,TRUE);

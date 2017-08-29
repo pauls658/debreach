@@ -251,7 +251,7 @@ extern int ZEXPORT zipOpenNewFileInZip3_64 OF((zipFile file,
 
 /*
   Same than zipOpenNewFileInZip2, except
-    windowBits,memLevel,,strategy : see parameter strategy in deflateInit2
+    windowBits,memLevel,,strategy : see parameter strategy in debreachInit2
     password : crypting password (NULL for no crypting)
     crcForCrypting : crc of file to compress (needed for crypting)
  */

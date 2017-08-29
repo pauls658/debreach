@@ -620,7 +620,7 @@ local int log_compress(struct log *log, unsigned char *data, size_t len)
         strm.zalloc = Z_NULL;
         strm.zfree = Z_NULL;
         strm.opaque = Z_NULL;
-        if (deflateInit2(&strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED, -15, 8,
+        if (debreachInit2(&strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED, -15, 8,
                          Z_DEFAULT_STRATEGY) != Z_OK)
             return -2;
 
@@ -631,7 +631,7 @@ local int log_compress(struct log *log, unsigned char *data, size_t len)
             dict = read(fd, buf, DICT);
             close(fd);
             if (dict < 0) {
-                deflateEnd(&strm);
+                debreachEnd(&strm);
                 return -1;
             }
             if (dict)
@@ -644,7 +644,7 @@ local int log_compress(struct log *log, unsigned char *data, size_t len)
         if (lseek(log->fd, log->first - (log->back > 8 ? 2 : 1),
                 SEEK_SET) < 0 ||
             read(log->fd, buf, 1) != 1 || lseek(log->fd, -1, SEEK_CUR) < 0) {
-            deflateEnd(&strm);
+            debreachEnd(&strm);
             return -1;
         }
         deflatePrime(&strm, (8 - log->back) & 7, *buf);
@@ -661,13 +661,13 @@ local int log_compress(struct log *log, unsigned char *data, size_t len)
                 deflate(&strm, len ? Z_NO_FLUSH : Z_PARTIAL_FLUSH);
                 got = DICT - strm.avail_out;
                 if (got && write(log->fd, buf, got) != got) {
-                    deflateEnd(&strm);
+                    debreachEnd(&strm);
                     return -1;
                 }
                 log_touch(log);
             } while (strm.avail_out == 0);
         } while (len);
-        deflateEnd(&strm);
+        debreachEnd(&strm);
         BAIL(5);
 
         /* find start of empty static block -- scanning backwards the first one

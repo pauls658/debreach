@@ -4,7 +4,7 @@
 
 /* Version history:
    1.0  24 Nov 2004  First version
-   1.1  25 Nov 2004  Change deflateInit2() to deflateInit()
+   1.1  25 Nov 2004  Change debreachInit2() to debreachInit()
                      Use fixed-size, stack-allocated raw buffers
                      Simplify code moving compression to subroutines
                      Use assert() for internal errors
@@ -148,7 +148,7 @@ int main(int argc, char **argv)
     def.zalloc = Z_NULL;
     def.zfree = Z_NULL;
     def.opaque = Z_NULL;
-    ret = deflateInit(&def, Z_DEFAULT_COMPRESSION);
+    ret = debreachInit(&def, Z_DEFAULT_COMPRESSION);
     if (ret != Z_OK || blk == NULL)
         quit("out of memory");
 
@@ -167,7 +167,7 @@ int main(int argc, char **argv)
             quit("error writing output");
 
         /* clean up and print results to stderr */
-        ret = deflateEnd(&def);
+        ret = debreachEnd(&def);
         assert(ret != Z_STREAM_ERROR);
         free(blk);
         fprintf(stderr,
@@ -186,7 +186,7 @@ int main(int argc, char **argv)
     tmp = malloc(size + EXCESS);
     if (ret != Z_OK || tmp == NULL)
         quit("out of memory");
-    ret = deflateReset(&def);
+    ret = debreachReset(&def);
     assert(ret != Z_STREAM_ERROR);
 
     /* do first recompression close to the right amount */
@@ -201,7 +201,7 @@ int main(int argc, char **argv)
     /* set up for next reocmpression */
     ret = inflateReset(&inf);
     assert(ret != Z_STREAM_ERROR);
-    ret = deflateReset(&def);
+    ret = debreachReset(&def);
     assert(ret != Z_STREAM_ERROR);
 
     /* do second and final recompression (third compression) */
@@ -223,7 +223,7 @@ int main(int argc, char **argv)
     free(tmp);
     ret = inflateEnd(&inf);
     assert(ret != Z_STREAM_ERROR);
-    ret = deflateEnd(&def);
+    ret = debreachEnd(&def);
     assert(ret != Z_STREAM_ERROR);
     free(blk);
     fprintf(stderr,

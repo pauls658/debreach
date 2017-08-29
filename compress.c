@@ -10,7 +10,7 @@
 
 /* ===========================================================================
      Compresses the source buffer into the destination buffer. The level
-   parameter has the same meaning as in deflateInit.  sourceLen is the byte
+   parameter has the same meaning as in debreachInit.  sourceLen is the byte
    length of the source buffer. Upon entry, destLen is the total size of the
    destination buffer, which must be at least 0.1% larger than sourceLen plus
    12 bytes. Upon exit, destLen is the actual size of the compressed buffer.
@@ -43,17 +43,17 @@ int ZEXPORT compress2 (dest, destLen, source, sourceLen, level)
     stream.zfree = (free_func)0;
     stream.opaque = (voidpf)0;
 
-    err = deflateInit(&stream, level);
+    err = debreachInit(&stream, level);
     if (err != Z_OK) return err;
 
     err = deflate(&stream, Z_FINISH);
     if (err != Z_STREAM_END) {
-        deflateEnd(&stream);
+        debreachEnd(&stream);
         return err == Z_OK ? Z_BUF_ERROR : err;
     }
     *destLen = stream.total_out;
 
-    err = deflateEnd(&stream);
+    err = debreachEnd(&stream);
     return err;
 }
 
@@ -69,7 +69,7 @@ int ZEXPORT compress (dest, destLen, source, sourceLen)
 }
 
 /* ===========================================================================
-     If the default memLevel or windowBits for deflateInit() is changed, then
+     If the default memLevel or windowBits for debreachInit() is changed, then
    this function needs to be updated.
  */
 uLong ZEXPORT compressBound (sourceLen)

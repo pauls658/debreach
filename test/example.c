@@ -209,8 +209,8 @@ void test_deflate(compr, comprLen)
     c_stream.zfree = zfree;
     c_stream.opaque = (voidpf)0;
 
-    err = deflateInit(&c_stream, Z_DEFAULT_COMPRESSION);
-    CHECK_ERR(err, "deflateInit");
+    err = debreachInit(&c_stream, Z_DEFAULT_COMPRESSION);
+    CHECK_ERR(err, "debreachInit");
 
     c_stream.next_in  = (z_const unsigned char *)hello;
     c_stream.next_out = compr;
@@ -228,8 +228,8 @@ void test_deflate(compr, comprLen)
         CHECK_ERR(err, "deflate");
     }
 
-    err = deflateEnd(&c_stream);
-    CHECK_ERR(err, "deflateEnd");
+    err = debreachEnd(&c_stream);
+    CHECK_ERR(err, "debreachEnd");
 }
 
 /* ===========================================================================
@@ -287,8 +287,8 @@ void test_large_deflate(compr, comprLen, uncompr, uncomprLen)
     c_stream.zfree = zfree;
     c_stream.opaque = (voidpf)0;
 
-    err = deflateInit(&c_stream, Z_BEST_SPEED);
-    CHECK_ERR(err, "deflateInit");
+    err = debreachInit(&c_stream, Z_BEST_SPEED);
+    CHECK_ERR(err, "debreachInit");
 
     c_stream.next_out = compr;
     c_stream.avail_out = (uInt)comprLen;
@@ -324,8 +324,8 @@ void test_large_deflate(compr, comprLen, uncompr, uncomprLen)
         fprintf(stderr, "deflate should report Z_STREAM_END\n");
         exit(1);
     }
-    err = deflateEnd(&c_stream);
-    CHECK_ERR(err, "deflateEnd");
+    err = debreachEnd(&c_stream);
+    CHECK_ERR(err, "debreachEnd");
 }
 
 /* ===========================================================================
@@ -384,8 +384,8 @@ void test_flush(compr, comprLen)
     c_stream.zfree = zfree;
     c_stream.opaque = (voidpf)0;
 
-    err = deflateInit(&c_stream, Z_DEFAULT_COMPRESSION);
-    CHECK_ERR(err, "deflateInit");
+    err = debreachInit(&c_stream, Z_DEFAULT_COMPRESSION);
+    CHECK_ERR(err, "debreachInit");
 
     c_stream.next_in  = (z_const unsigned char *)hello;
     c_stream.next_out = compr;
@@ -401,8 +401,8 @@ void test_flush(compr, comprLen)
     if (err != Z_STREAM_END) {
         CHECK_ERR(err, "deflate");
     }
-    err = deflateEnd(&c_stream);
-    CHECK_ERR(err, "deflateEnd");
+    err = debreachEnd(&c_stream);
+    CHECK_ERR(err, "debreachEnd");
 
     *comprLen = c_stream.total_out;
 }
@@ -465,8 +465,8 @@ void test_dict_deflate(compr, comprLen)
     c_stream.zfree = zfree;
     c_stream.opaque = (voidpf)0;
 
-    err = deflateInit(&c_stream, Z_BEST_COMPRESSION);
-    CHECK_ERR(err, "deflateInit");
+    err = debreachInit(&c_stream, Z_BEST_COMPRESSION);
+    CHECK_ERR(err, "debreachInit");
 
     err = deflateSetDictionary(&c_stream,
                 (const Bytef*)dictionary, (int)sizeof(dictionary));
@@ -484,8 +484,8 @@ void test_dict_deflate(compr, comprLen)
         fprintf(stderr, "deflate should report Z_STREAM_END\n");
         exit(1);
     }
-    err = deflateEnd(&c_stream);
-    CHECK_ERR(err, "deflateEnd");
+    err = debreachEnd(&c_stream);
+    CHECK_ERR(err, "debreachEnd");
 }
 
 /* ===========================================================================

@@ -98,7 +98,7 @@ typedef struct debreach_ctx_t
     unsigned int filter_init:1; /* used by the original mod_deflate implementation.
 								 not sure what it actually means. */
     unsigned int done:1;
-	unsigned int initd:1; /* boolean: true if we initialized the above struct members.
+	unsigned int initd; /* boolean: true if we initialized the above struct members.
 				 otherwise we only initialized the br members below. */
 
 	int *brs_buf;
@@ -654,10 +654,11 @@ int mod_debreach_taint_brs(ap_filter_t *f, int start, int end) {
 	    brs[1] = end;
 	    apache_log_int_arr(f->r, brs, 2);
 	    align_brs(f->r, &(ctx->stream), brs, 2);
-		return taint_brs(&(ctx->stream), brs, 4);
+		//return taint_brs(&(ctx->stream), brs, 4);
 	} else {
-		return buffer_br(f, start, end);
+		//return buffer_br(f, start, end);
 	}
+	return 0;
 }
 
 #ifdef VDEBUG
@@ -947,23 +948,23 @@ static apr_status_t debreach_out_filter(ap_filter_t *f,
         if (r->status != HTTP_NOT_MODIFIED) {
             ctx->bb = apr_brigade_create(r->pool, f->c->bucket_alloc);
             ctx->buffer = apr_palloc(r->pool, c->bufferSize);
-            ctx->libz_end_func = deflateEnd;
+            ctx->libz_end_func = debreachEnd;
 
-            zRC = deflateInit2(&ctx->stream, c->compressionlevel, Z_DEFLATED,
+            zRC = debreachInit2(&ctx->stream, c->compressionlevel, Z_DEFLATED,
                                c->windowSize, c->memlevel,
                                Z_DEFAULT_STRATEGY);
 			if (ctx->brs_buf_len != 0) {
 	    		apache_log_int_arr(r, ctx->brs_buf, ctx->brs_buf_len);
 				taint_brs(&(ctx->stream), ctx->brs_buf, ctx->brs_buf_len + 2);
-				ctx->initd = 1;
 				ctx->brs_buf_len = 0;
 			}
+			ctx->initd = 1;
             if (zRC != Z_OK) {
                 ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(01383)
                               "unable to init Zlib: "
-                              "deflateInit2 returned %d: URL %s message \"%s\"",
+                              "debreachInit2 returned %d: URL %s message \"%s\"",
                               zRC, r->uri, ctx->stream.msg);
-                deflateEnd(&ctx->stream);
+                debreachEnd(&ctx->stream);
                 /*
                  * Remove ourselves as it does not make sense to return:
                  * We are not able to init libz and pass data down the chain
@@ -1092,7 +1093,7 @@ static apr_status_t debreach_out_filter(ap_filter_t *f,
                                 : "-");
             }
 
-            deflateEnd(&ctx->stream);
+            debreachEnd(&ctx->stream);
             /* No need for cleanup any longer */
             apr_pool_cleanup_kill(r->pool, ctx, debreach_ctx_cleanup);
 

@@ -195,7 +195,7 @@ typedef gz_header FAR *gz_headerp;
 #define Z_RLE                 3
 #define Z_FIXED               4
 #define Z_DEFAULT_STRATEGY    0
-/* compression strategy; see deflateInit2() below for details */
+/* compression strategy; see debreachInit2() below for details */
 
 #define Z_BINARY   0
 #define Z_TEXT     1
@@ -218,15 +218,15 @@ ZEXTERN const char * ZEXPORT zlibVersion OF((void));
 /* The application can compare zlibVersion and ZLIB_VERSION for consistency.
    If the first character differs, the library code actually used is not
    compatible with the zlib.h header file used by the application.  This check
-   is automatically made by deflateInit and inflateInit.
+   is automatically made by debreachInit and inflateInit.
  */
 
 /*
-ZEXTERN int ZEXPORT deflateInit OF((z_streamp strm, int level));
+ZEXTERN int ZEXPORT debreachInit OF((z_streamp strm, int level));
 
      Initializes the internal stream state for compression.  The fields
    zalloc, zfree and opaque must be initialized before by the caller.  If
-   zalloc and zfree are set to Z_NULL, deflateInit updates them to use default
+   zalloc and zfree are set to Z_NULL, debreachInit updates them to use default
    allocation functions.
 
      The compression level must be Z_DEFAULT_COMPRESSION, or between 0 and 9:
@@ -235,11 +235,11 @@ ZEXTERN int ZEXPORT deflateInit OF((z_streamp strm, int level));
    requests a default compromise between speed and compression (currently
    equivalent to level 6).
 
-     deflateInit returns Z_OK if success, Z_MEM_ERROR if there was not enough
+     debreachInit returns Z_OK if success, Z_MEM_ERROR if there was not enough
    memory, Z_STREAM_ERROR if level is not a valid compression level, or
    Z_VERSION_ERROR if the zlib library version (zlib_version) is incompatible
    with the version assumed by the caller (ZLIB_VERSION).  msg is set to null
-   if there is no error message.  deflateInit does not perform any compression:
+   if there is no error message.  debreachInit does not perform any compression:
    this will be done by deflate().
 */
 
@@ -329,9 +329,9 @@ ZEXTERN int ZEXPORT taint_brs OF((z_streamp strm, int *brs, unsigned len));
   called again with Z_FINISH and more output space (updated avail_out) but no
   more input data, until it returns with Z_STREAM_END or an error.  After
   deflate has returned Z_STREAM_END, the only possible operations on the stream
-  are deflateReset or deflateEnd.
+  are debreachReset or debreachEnd.
 
-    Z_FINISH can be used immediately after deflateInit if all the compression
+    Z_FINISH can be used immediately after debreachInit if all the compression
   is to be done in a single step.  In this case, avail_out must be at least the
   value returned by deflateBound (see below).  Then deflate is guaranteed to
   return Z_STREAM_END.  If not enough output space is provided, deflate will
@@ -356,13 +356,13 @@ ZEXTERN int ZEXPORT taint_brs OF((z_streamp strm, int *brs, unsigned len));
 */
 
 
-ZEXTERN int ZEXPORT deflateEnd OF((z_streamp strm));
+ZEXTERN int ZEXPORT debreachEnd OF((z_streamp strm));
 /*
      All dynamically allocated data structures for this stream are freed.
    This function discards any unprocessed input and does not flush any pending
    output.
 
-     deflateEnd returns Z_OK if success, Z_STREAM_ERROR if the
+     debreachEnd returns Z_OK if success, Z_STREAM_ERROR if the
    stream state was inconsistent, Z_DATA_ERROR if the stream was freed
    prematurely (some input or output was discarded).  In the error case, msg
    may be set but then points to a static string (which must not be
@@ -530,14 +530,14 @@ ZEXTERN int ZEXPORT inflateEnd OF((z_streamp strm));
 */
 
 /*
-ZEXTERN int ZEXPORT deflateInit2 OF((z_streamp strm,
+ZEXTERN int ZEXPORT debreachInit2 OF((z_streamp strm,
                                      int  level,
                                      int  method,
                                      int  windowBits,
                                      int  memLevel,
                                      int  strategy));
 
-     This is another version of deflateInit with more compression options.  The
+     This is another version of debreachInit with more compression options.  The
    fields next_in, zalloc, zfree and opaque must be initialized before by the
    caller.
 
@@ -548,7 +548,7 @@ ZEXTERN int ZEXPORT deflateInit2 OF((z_streamp strm,
    (the size of the history buffer).  It should be in the range 8..15 for this
    version of the library.  Larger values of this parameter result in better
    compression at the expense of memory usage.  The default value is 15 if
-   deflateInit is used instead.
+   debreachInit is used instead.
 
      windowBits can also be -8..-15 for raw deflate.  In this case, -windowBits
    determines the window size.  deflate() will then generate raw deflate data
@@ -582,11 +582,11 @@ ZEXTERN int ZEXPORT deflateInit2 OF((z_streamp strm,
    Z_FIXED prevents the use of dynamic Huffman codes, allowing for a simpler
    decoder for special applications.
 
-     deflateInit2 returns Z_OK if success, Z_MEM_ERROR if there was not enough
+     debreachInit2 returns Z_OK if success, Z_MEM_ERROR if there was not enough
    memory, Z_STREAM_ERROR if any parameter is invalid (such as an invalid
    method), or Z_VERSION_ERROR if the zlib library version (zlib_version) is
    incompatible with the version assumed by the caller (ZLIB_VERSION).  msg is
-   set to null if there is no error message.  deflateInit2 does not perform any
+   set to null if there is no error message.  debreachInit2 does not perform any
    compression: this will be done by deflate().
 */
 
@@ -596,8 +596,8 @@ ZEXTERN int ZEXPORT deflateSetDictionary OF((z_streamp strm,
 /*
      Initializes the compression dictionary from the given byte sequence
    without producing any compressed output.  When using the zlib format, this
-   function must be called immediately after deflateInit, deflateInit2 or
-   deflateReset, and before any call of deflate.  When doing raw deflate, this
+   function must be called immediately after debreachInit, debreachInit2 or
+   debreachReset, and before any call of deflate.  When doing raw deflate, this
    function must be called either before any call of deflate, or immediately
    after the completion of a deflate block, i.e. after all input has been
    consumed and all output has been delivered when using any of the flush
@@ -613,9 +613,9 @@ ZEXTERN int ZEXPORT deflateSetDictionary OF((z_streamp strm,
    with the default empty dictionary.
 
      Depending on the size of the compression data structures selected by
-   deflateInit or deflateInit2, a part of the dictionary may in effect be
+   debreachInit or debreachInit2, a part of the dictionary may in effect be
    discarded, for example if the dictionary is larger than the window size
-   provided in deflateInit or deflateInit2.  Thus the strings most likely to be
+   provided in debreachInit or debreachInit2.  Thus the strings most likely to be
    useful should be put at the end of the dictionary, not at the front.  In
    addition, the current implementation of deflate will use at most the window
    size minus 262 bytes of the provided dictionary.
@@ -642,7 +642,7 @@ ZEXTERN int ZEXPORT deflateCopy OF((z_streamp dest,
      This function can be useful when several compression strategies will be
    tried, for example when there are several ways of pre-processing the input
    data with a filter.  The streams that will be discarded should then be freed
-   by calling deflateEnd.  Note that deflateCopy duplicates the internal
+   by calling debreachEnd.  Note that deflateCopy duplicates the internal
    compression state which can be quite large, so this strategy is slow and can
    consume lots of memory.
 
@@ -652,14 +652,14 @@ ZEXTERN int ZEXPORT deflateCopy OF((z_streamp dest,
    destination.
 */
 
-ZEXTERN int ZEXPORT deflateReset OF((z_streamp strm));
+ZEXTERN int ZEXPORT debreachReset OF((z_streamp strm));
 /*
-     This function is equivalent to deflateEnd followed by deflateInit,
+     This function is equivalent to debreachEnd followed by debreachInit,
    but does not free and reallocate all the internal compression state.  The
    stream will keep the same compression level and any other attributes that
-   may have been set by deflateInit2.
+   may have been set by debreachInit2.
 
-     deflateReset returns Z_OK if success, or Z_STREAM_ERROR if the source
+     debreachReset returns Z_OK if success, or Z_STREAM_ERROR if the source
    stream state was inconsistent (such as zalloc or state being Z_NULL).
 */
 
@@ -668,7 +668,7 @@ ZEXTERN int ZEXPORT deflateParams OF((z_streamp strm,
                                       int strategy));
 /*
      Dynamically update the compression level and compression strategy.  The
-   interpretation of level and strategy is as in deflateInit2.  This can be
+   interpretation of level and strategy is as in debreachInit2.  This can be
    used to switch between compression and straight copy of the input data, or
    to switch to a different kind of input data requiring a different strategy.
    If the compression level is changed, the input available so far is
@@ -697,7 +697,7 @@ ZEXTERN int ZEXPORT deflateTune OF((z_streamp strm,
    specific input data.  Read the deflate.c source code for the meaning of the
    max_lazy, good_length, nice_length, and max_chain parameters.
 
-     deflateTune() can be called after deflateInit() or deflateInit2(), and
+     deflateTune() can be called after debreachInit() or debreachInit2(), and
    returns Z_OK on success, or Z_STREAM_ERROR for an invalid deflate stream.
  */
 
@@ -705,8 +705,8 @@ ZEXTERN uLong ZEXPORT deflateBound OF((z_streamp strm,
                                        uLong sourceLen));
 /*
      deflateBound() returns an upper bound on the compressed size after
-   deflation of sourceLen bytes.  It must be called after deflateInit() or
-   deflateInit2(), and after deflateSetHeader(), if used.  This would be used
+   deflation of sourceLen bytes.  It must be called after debreachInit() or
+   debreachInit2(), and after deflateSetHeader(), if used.  This would be used
    to allocate an output buffer for deflation in a single pass, and so would be
    called before deflate().  If that first deflate() call is provided the
    sourceLen input bytes, an output buffer allocated to the size returned by
@@ -739,7 +739,7 @@ ZEXTERN int ZEXPORT deflatePrime OF((z_streamp strm,
    is that this function is used to start off the deflate output with the bits
    leftover from a previous deflate stream when appending to it.  As such, this
    function can only be used for raw deflate, and must be used before the first
-   deflate() call after a deflateInit2() or deflateReset().  bits must be less
+   deflate() call after a debreachInit2() or debreachReset().  bits must be less
    than or equal to 16, and that many of the least significant bits of value
    will be inserted in the output.
 
@@ -752,8 +752,8 @@ ZEXTERN int ZEXPORT deflateSetHeader OF((z_streamp strm,
                                          gz_headerp head));
 /*
      deflateSetHeader() provides gzip header information for when a gzip
-   stream is requested by deflateInit2().  deflateSetHeader() may be called
-   after deflateInit2() or deflateReset() and before the first call of
+   stream is requested by debreachInit2().  deflateSetHeader() may be called
+   after debreachInit2() or debreachReset() and before the first call of
    deflate().  The text, time, os, extra field, name, and comment information
    in the provided gz_header structure are written to the gzip header (xflag is
    ignored -- the extra flags are set according to the compression level).  The
@@ -766,7 +766,7 @@ ZEXTERN int ZEXPORT deflateSetHeader OF((z_streamp strm,
 
      If deflateSetHeader is not used, the default gzip header has text false,
    the time set to zero, and os set to 255, with no extra, name, or comment
-   fields.  The gzip header is returned to the default state by deflateReset().
+   fields.  The gzip header is returned to the default state by debreachReset().
 
      deflateSetHeader returns Z_OK if success, or Z_STREAM_ERROR if the source
    stream state was inconsistent.
@@ -784,8 +784,8 @@ ZEXTERN int ZEXPORT inflateInit2 OF((z_streamp strm,
    size (the size of the history buffer).  It should be in the range 8..15 for
    this version of the library.  The default value is 15 if inflateInit is used
    instead.  windowBits must be greater than or equal to the windowBits value
-   provided to deflateInit2() while compressing, or it must be equal to 15 if
-   deflateInit2() was not used.  If a compressed stream with a larger window
+   provided to debreachInit2() while compressing, or it must be equal to 15 if
+   debreachInit2() was not used.  If a compressed stream with a larger window
    size is given as input, inflate() will return with the error code
    Z_DATA_ERROR instead of trying to allocate a larger window.
 
@@ -802,7 +802,7 @@ ZEXTERN int ZEXPORT inflateInit2 OF((z_streamp strm,
    recommended that a check value such as an adler32 or a crc32 be applied to
    the uncompressed data as is done in the zlib, gzip, and zip formats.  For
    most applications, the zlib format should be used as is.  Note that comments
-   above on the use in deflateInit2() applies to the magnitude of windowBits.
+   above on the use in debreachInit2() applies to the magnitude of windowBits.
 
      windowBits can also be greater than 15 for optional gzip decoding.  Add
    32 to windowBits to enable zlib and gzip decoding with automatic header
@@ -1182,7 +1182,7 @@ ZEXTERN int ZEXPORT compress2 OF((Bytef *dest,   uLongf *destLen,
                                   int level));
 /*
      Compresses the source buffer into the destination buffer.  The level
-   parameter has the same meaning as in deflateInit.  sourceLen is the byte
+   parameter has the same meaning as in debreachInit.  sourceLen is the byte
    length of the source buffer.  Upon entry, destLen is the total size of the
    destination buffer, which must be at least the value returned by
    compressBound(sourceLen).  Upon exit, destLen is the actual size of the
@@ -1237,7 +1237,7 @@ ZEXTERN gzFile ZEXPORT gzopen OF((const char *path, const char *mode));
    a strategy: 'f' for filtered data as in "wb6f", 'h' for Huffman-only
    compression as in "wb1h", 'R' for run-length encoding as in "wb1R", or 'F'
    for fixed code compression as in "wb9F".  (See the description of
-   deflateInit2 for more information about the strategy parameter.)  'T' will
+   debreachInit2 for more information about the strategy parameter.)  'T' will
    request transparent writing or appending with no compression and not using
    the gzip format.
 
@@ -1310,7 +1310,7 @@ ZEXTERN int ZEXPORT gzbuffer OF((gzFile file, unsigned size));
 ZEXTERN int ZEXPORT gzsetparams OF((gzFile file, int level, int strategy));
 /*
      Dynamically update the compression level or strategy.  See the description
-   of deflateInit2 for the meaning of these parameters.
+   of debreachInit2 for the meaning of these parameters.
 
      gzsetparams returns Z_OK if success, or Z_STREAM_ERROR if the file was not
    opened for writing.
@@ -1633,14 +1633,14 @@ ZEXTERN uLong ZEXPORT crc32_combine OF((uLong crc1, uLong crc2, z_off_t len2));
 
                         /* various hacks, don't look :) */
 
-/* deflateInit and inflateInit are macros to allow checking the zlib version
+/* debreachInit and inflateInit are macros to allow checking the zlib version
  * and the compiler's view of z_stream:
  */
-ZEXTERN int ZEXPORT deflateInit_ OF((z_streamp strm, int level,
+ZEXTERN int ZEXPORT debreachInit_ OF((z_streamp strm, int level,
                                      const char *version, int stream_size));
 ZEXTERN int ZEXPORT inflateInit_ OF((z_streamp strm,
                                      const char *version, int stream_size));
-ZEXTERN int ZEXPORT deflateInit2_ OF((z_streamp strm, int  level, int  method,
+ZEXTERN int ZEXPORT debreachInit2_ OF((z_streamp strm, int  level, int  method,
                                       int windowBits, int memLevel,
                                       int strategy, const char *version,
                                       int stream_size));
@@ -1650,12 +1650,12 @@ ZEXTERN int ZEXPORT inflateBackInit_ OF((z_streamp strm, int windowBits,
                                          unsigned char FAR *window,
                                          const char *version,
                                          int stream_size));
-#define deflateInit(strm, level) \
-        deflateInit_((strm), (level), ZLIB_VERSION, (int)sizeof(z_stream))
+#define debreachInit(strm, level) \
+        debreachInit_((strm), (level), ZLIB_VERSION, (int)sizeof(z_stream))
 #define inflateInit(strm) \
         inflateInit_((strm), ZLIB_VERSION, (int)sizeof(z_stream))
-#define deflateInit2(strm, level, method, windowBits, memLevel, strategy) \
-        deflateInit2_((strm),(level),(method),(windowBits),(memLevel),\
+#define debreachInit2(strm, level, method, windowBits, memLevel, strategy) \
+        debreachInit2_((strm),(level),(method),(windowBits),(memLevel),\
                       (strategy), ZLIB_VERSION, (int)sizeof(z_stream))
 #define inflateInit2(strm, windowBits) \
         inflateInit2_((strm), (windowBits), ZLIB_VERSION, \
@@ -1754,7 +1754,7 @@ ZEXTERN int            ZEXPORT inflateSyncPoint OF((z_streamp));
 ZEXTERN const z_crc_t FAR * ZEXPORT get_crc_table    OF((void));
 ZEXTERN int            ZEXPORT inflateUndermine OF((z_streamp, int));
 ZEXTERN int            ZEXPORT inflateResetKeep OF((z_streamp));
-ZEXTERN int            ZEXPORT deflateResetKeep OF((z_streamp));
+ZEXTERN int            ZEXPORT debreachResetKeep OF((z_streamp));
 #if defined(_WIN32) && !defined(Z_SOLO)
 ZEXTERN gzFile         ZEXPORT gzopen_w OF((const wchar_t *path,
                                             const char *mode));

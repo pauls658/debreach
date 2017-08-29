@@ -209,7 +209,7 @@ gzFile gz_open(path, fd, mode)
     gz->strm.zfree = myfree;
     gz->strm.opaque = Z_NULL;
     if (gz->write)
-        ret = deflateInit2(&(gz->strm), -1, 8, 15 + 16, 8, 0);
+        ret = debreachInit2(&(gz->strm), -1, 8, 15 + 16, 8, 0);
     else {
         gz->strm.next_in = 0;
         gz->strm.avail_in = Z_NULL;
@@ -222,7 +222,7 @@ gzFile gz_open(path, fd, mode)
     gz->file = path == NULL ? fdopen(fd, gz->write ? "wb" : "rb") :
                               fopen(path, gz->write ? "wb" : "rb");
     if (gz->file == NULL) {
-        gz->write ? deflateEnd(&(gz->strm)) : inflateEnd(&(gz->strm));
+        gz->write ? debreachEnd(&(gz->strm)) : inflateEnd(&(gz->strm));
         free(gz);
         return NULL;
     }
@@ -312,7 +312,7 @@ int gzclose(gz)
             (void)deflate(strm, Z_FINISH);
             fwrite(out, 1, BUFLEN - strm->avail_out, gz->file);
         } while (strm->avail_out == 0);
-        deflateEnd(strm);
+        debreachEnd(strm);
     }
     else
         inflateEnd(strm);

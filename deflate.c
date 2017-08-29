@@ -210,19 +210,19 @@ struct static_tree_desc_s {int dummy;}; /* for buggy compilers */
     zmemzero((Bytef *)s->head, (unsigned)(s->hash_size-1)*sizeof(*s->head));
 
 /* ========================================================================= */
-int ZEXPORT deflateInit_(strm, level, version, stream_size)
+int ZEXPORT debreachInit_(strm, level, version, stream_size)
     z_streamp strm;
     int level;
     const char *version;
     int stream_size;
 {
-    return deflateInit2_(strm, level, Z_DEFLATED, MAX_WBITS, DEF_MEM_LEVEL,
+    return debreachInit2_(strm, level, Z_DEFLATED, MAX_WBITS, DEF_MEM_LEVEL,
                          Z_DEFAULT_STRATEGY, version, stream_size);
     /* To do: ignore strm->next_in if we use it as window */
 }
 
 /* ========================================================================= */
-int ZEXPORT deflateInit2_(strm, level, method, windowBits, memLevel, strategy,
+int ZEXPORT debreachInit2_(strm, level, method, windowBits, memLevel, strategy,
                   version, stream_size)
     z_streamp strm;
     int  level;
@@ -328,7 +328,7 @@ int ZEXPORT deflateInit2_(strm, level, method, windowBits, memLevel, strategy,
         s->pending_buf == Z_NULL) {
         s->status = FINISH_STATE;
         strm->msg = ERR_MSG(Z_MEM_ERROR);
-        deflateEnd (strm);
+        debreachEnd (strm);
         return Z_MEM_ERROR;
     }
     s->d_buf = overlay + s->lit_bufsize/sizeof(ush);
@@ -338,7 +338,7 @@ int ZEXPORT deflateInit2_(strm, level, method, windowBits, memLevel, strategy,
     s->strategy = strategy;
     s->method = (Byte)method;
 
-    return deflateReset(strm);
+    return debreachReset(strm);
 }
 
 /* ========================================================================= */
@@ -411,7 +411,7 @@ int ZEXPORT deflateSetDictionary (strm, dictionary, dictLength)
 }
 
 /* ========================================================================= */
-int ZEXPORT deflateResetKeep (strm)
+int ZEXPORT debreachResetKeep (strm)
     z_streamp strm;
 {
     deflate_state *s;
@@ -452,12 +452,12 @@ int ZEXPORT deflateResetKeep (strm)
 }
 
 /* ========================================================================= */
-int ZEXPORT deflateReset (strm)
+int ZEXPORT debreachReset (strm)
     z_streamp strm;
 {
     int ret;
 
-    ret = deflateResetKeep(strm);
+    ret = debreachResetKeep(strm);
     if (ret == Z_OK)
         lm_init(strm->state);
     return ret;
@@ -1317,7 +1317,7 @@ int ZEXPORT debreach(strm, flush)
 #endif
 
 /* ========================================================================= */
-int ZEXPORT deflateEnd (strm)
+int ZEXPORT debreachEnd (strm)
     z_streamp strm;
 {
     int status;
@@ -1390,7 +1390,7 @@ int ZEXPORT deflateCopy (dest, source)
 
     if (ds->window == Z_NULL || ds->prev == Z_NULL || ds->head == Z_NULL ||
         ds->pending_buf == Z_NULL) {
-        deflateEnd (dest);
+        debreachEnd (dest);
         return Z_MEM_ERROR;
     }
     /* following zmemcpy do not work for 16-bit MSDOS */
@@ -1855,7 +1855,7 @@ int ZEXPORT declare_unsafe(strm, unsafe)
  * state.
  * - len is the the number of unsigned ints in the array including the
  *   terminator
- * - This should only be called after deflateInit is called
+ * - This should only be called after debreachInit is called
  */
 int ZEXPORT taint_brs(strm, brs, len)
 	z_streamp strm;

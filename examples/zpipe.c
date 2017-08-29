@@ -45,7 +45,7 @@ int def(FILE *source, FILE *dest, int level)
     strm.zalloc = Z_NULL;
     strm.zfree = Z_NULL;
     strm.opaque = Z_NULL;
-    ret = deflateInit(&strm, level);
+    ret = debreachInit(&strm, level);
     if (ret != Z_OK)
         return ret;
 
@@ -53,7 +53,7 @@ int def(FILE *source, FILE *dest, int level)
     do {
         strm.avail_in = fread(in, 1, CHUNK, source);
         if (ferror(source)) {
-            (void)deflateEnd(&strm);
+            (void)debreachEnd(&strm);
             return Z_ERRNO;
         }
         flush = feof(source) ? Z_FINISH : Z_NO_FLUSH;
@@ -68,7 +68,7 @@ int def(FILE *source, FILE *dest, int level)
             assert(ret != Z_STREAM_ERROR);  /* state not clobbered */
             have = CHUNK - strm.avail_out;
             if (fwrite(out, 1, have, dest) != have || ferror(dest)) {
-                (void)deflateEnd(&strm);
+                (void)debreachEnd(&strm);
                 return Z_ERRNO;
             }
         } while (strm.avail_out == 0);
@@ -79,7 +79,7 @@ int def(FILE *source, FILE *dest, int level)
     assert(ret == Z_STREAM_END);        /* stream will be complete */
 
     /* clean up and return */
-    (void)deflateEnd(&strm);
+    (void)debreachEnd(&strm);
     return Z_OK;
 }
 

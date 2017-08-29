@@ -1218,7 +1218,7 @@ extern int ZEXPORT zipOpenNewFileInZip4_64 (zipFile file, const char* filename, 
           if (windowBits>0)
               windowBits = -windowBits;
 
-          err = deflateInit2(&zi->ci.stream, level, Z_DEFLATED, windowBits, memLevel, strategy);
+          err = debreachInit2(&zi->ci.stream, level, Z_DEFLATED, windowBits, memLevel, strategy);
 
           if (err==Z_OK)
               zi->ci.stream_initialised = Z_DEFLATED;
@@ -1582,7 +1582,7 @@ extern int ZEXPORT zipCloseFileInZipRaw64 (zipFile file, ZPOS64_T uncompressed_s
 
     if ((zi->ci.method == Z_DEFLATED) && (!zi->ci.raw))
     {
-        int tmp_err = deflateEnd(&zi->ci.stream);
+        int tmp_err = debreachEnd(&zi->ci.stream);
         if (err == ZIP_OK)
             err = tmp_err;
         zi->ci.stream_initialised = 0;

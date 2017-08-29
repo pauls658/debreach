@@ -365,7 +365,7 @@ local int gzscan(char *name, z_stream *strm, int level)
     }
 
     /* set up deflate stream with window, crc, total_in, and leftover bits */
-    ret = deflateInit2(strm, level, Z_DEFLATED, -15, 8, Z_DEFAULT_STRATEGY);
+    ret = debreachInit2(strm, level, Z_DEFLATED, -15, 8, Z_DEFAULT_STRATEGY);
     if (ret != Z_OK) bye("out of memory", "");
     deflateSetDictionary(strm, window, have);
     strm->adler = crc;
@@ -435,7 +435,7 @@ local void gztack(char *name, int gd, z_stream *strm, int last)
 
     /* write trailer after last entry */
     if (last) {
-        deflateEnd(strm);
+        debreachEnd(strm);
         out[0] = (unsigned char)(strm->adler);
         out[1] = (unsigned char)(strm->adler >> 8);
         out[2] = (unsigned char)(strm->adler >> 16);

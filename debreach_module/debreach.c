@@ -70,7 +70,7 @@ PHP_FUNCTION(taint_brs)
 	// find the debreach filter for this request
 	filter_chain = php_ctx->r->output_filters;
 	while (filter_chain != NULL) {
-		if (strncmp(filter_chain->frec->name, debreachFilterName, 1024) == 0)
+		if (strstr(filter_chain->frec->name, debreachFilterName) != NULL)
 			break;
 		filter_chain = filter_chain->next;
 	}

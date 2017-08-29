@@ -45,7 +45,7 @@ function __debreach_filter($data) {
 	if ($__DEBREACH_BUF_TAINTED) {
 		$cur_byte = $__DEBREACH_DATA_COUNT;
 		$ret = taint_brs($cur_byte, ($cur_byte + strlen($data) - 1));
-		if ($ret != true) {
+		if (is_string($ret)) {
 			error_log($ret);
 		}
 		$__DEBREACH_BUF_TAINTED = False;

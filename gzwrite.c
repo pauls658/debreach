@@ -39,7 +39,7 @@ local int gz_init(state)
         strm->zalloc = Z_NULL;
         strm->zfree = Z_NULL;
         strm->opaque = Z_NULL;
-        ret = deflateInit2(strm, state->level, Z_DEFLATED,
+        ret = debreachInit2(strm, state->level, Z_DEFLATED,
                            MAX_WBITS + 16, DEF_MEM_LEVEL, state->strategy);
         if (ret != Z_OK) {
             free(state->out);
@@ -123,7 +123,7 @@ local int gz_comp(state, flush)
 
     /* if that completed a deflate stream, allow another to start */
     if (flush == Z_FINISH)
-        deflateReset(strm);
+        debreachReset(strm);
 
     /* all done, no errors */
     return 0;
@@ -563,7 +563,7 @@ int ZEXPORT gzclose_w(file)
         ret = state->err;
     if (state->size) {
         if (!state->direct) {
-            (void)deflateEnd(&(state->strm));
+            (void)debreachEnd(&(state->strm));
             free(state->out);
         }
         free(state->in);

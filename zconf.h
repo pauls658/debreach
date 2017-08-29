@@ -40,14 +40,14 @@
 #  define deflate               z_deflate
 #  define deflateBound          z_deflateBound
 #  define deflateCopy           z_deflateCopy
-#  define deflateEnd            z_deflateEnd
-#  define deflateInit2_         z_deflateInit2_
-#  define deflateInit_          z_deflateInit_
+#  define debreachEnd            z_debreachEnd
+#  define debreachInit2_         z_debreachInit2_
+#  define debreachInit_          z_debreachInit_
 #  define deflateParams         z_deflateParams
 #  define deflatePending        z_deflatePending
 #  define deflatePrime          z_deflatePrime
-#  define deflateReset          z_deflateReset
-#  define deflateResetKeep      z_deflateResetKeep
+#  define debreachReset          z_debreachReset
+#  define debreachResetKeep      z_debreachResetKeep
 #  define deflateSetDictionary  z_deflateSetDictionary
 #  define deflateSetHeader      z_deflateSetHeader
 #  define deflateTune           z_deflateTune
@@ -229,7 +229,7 @@
 #  define NO_DUMMY_DECL
 #endif
 
-/* Maximum value for memLevel in deflateInit2 */
+/* Maximum value for memLevel in debreachInit2 */
 #ifndef MAX_MEM_LEVEL
 #  ifdef MAXSEG_64K
 #    define MAX_MEM_LEVEL 8
@@ -238,7 +238,7 @@
 #  endif
 #endif
 
-/* Maximum value for windowBits in deflateInit2 and inflateInit2.
+/* Maximum value for windowBits in debreachInit2 and inflateInit2.
  * WARNING: reducing MAX_WBITS makes minigzip unable to extract .gz files
  * created by gzip. (Files created by minigzip can still be extracted by
  * gzip.)
@@ -493,9 +493,9 @@ typedef uLong FAR uLongf;
 
 /* MVS linker does not support external names larger than 8 bytes */
 #if defined(__MVS__)
-  #pragma map(deflateInit_,"DEIN")
-  #pragma map(deflateInit2_,"DEIN2")
-  #pragma map(deflateEnd,"DEEND")
+  #pragma map(debreachInit_,"DEIN")
+  #pragma map(debreachInit2_,"DEIN2")
+  #pragma map(debreachEnd,"DEEND")
   #pragma map(deflateBound,"DEBND")
   #pragma map(inflateInit_,"ININ")
   #pragma map(inflateInit2_,"ININ2")

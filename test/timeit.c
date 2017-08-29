@@ -64,7 +64,7 @@ int gzcloset(gz)
             (void)debreach(strm, Z_FINISH);
         } while (strm->avail_out == 0);
 		// Don't want to free the state
-        // deflateEnd(strm);
+        // debreachEnd(strm);
     }
     //fclose(gz->file);
     //free(gz);
@@ -85,7 +85,7 @@ gzFilet gz_opent(mode)
     gz->strm.zfree = myfree;
     gz->strm.opaque = Z_NULL;
     if (gz->write)
-        ret = deflateInit2(&(gz->strm), -1, 8, 15 + 16, 8, 0);
+        ret = debreachInit2(&(gz->strm), -1, 8, 15 + 16, 8, 0);
     else {
         gz->strm.next_in = 0;
         gz->strm.avail_in = Z_NULL;
@@ -99,7 +99,7 @@ gzFilet gz_opent(mode)
     // gz->file = path == NULL ? fdopen(fd, gz->write ? "wb" : "rb") :
     //                          fopen(path, gz->write ? "wb" : "rb");
     //if (gz->file == NULL) {
-    //    gz->write ? deflateEnd(&(gz->strm)) : inflateEnd(&(gz->strm));
+    //    gz->write ? debreachEnd(&(gz->strm)) : inflateEnd(&(gz->strm));
     //    free(gz);
     //    return NULL;
     //}
@@ -241,7 +241,7 @@ int main(argc, argv)
     	start = clock(), diff;
     	for (i = 0; i < ROUNDS; i++) {
     		fseek(in, 0, SEEK_SET);
-    		deflateReset(&(out->strm));
+    		debreachReset(&(out->strm));
     		gz_compress(in, out, taint, n + 2);		
     	}
     	diff = clock() - start;
@@ -251,7 +251,7 @@ int main(argc, argv)
     	start = clock(), diff;
     	for (i = 0; i < ROUNDS; i++) {
     		fseek(in, 0, SEEK_SET);
-    		deflateReset(&(out->strm));
+    		debreachReset(&(out->strm));
     		gz_compress(in, out, taint, n + 2);		
     	}
     	diff = clock() - start;
@@ -259,7 +259,7 @@ int main(argc, argv)
 	}
 
 	// Cleanup
-	deflateEnd(&(out->strm));
+	debreachEnd(&(out->strm));
 	free(out);
 	fclose(in);
 	free(taint);
