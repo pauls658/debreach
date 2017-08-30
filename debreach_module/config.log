@@ -77,17 +77,17 @@ cc: fatal error: no input files
 compilation terminated.
 configure:2708: $? = 1
 configure:2728: checking whether the C compiler works
-configure:2750: cc   -L/usr/local/apache2/modules -l:mod_debreach.so conftest.c  >&5
+configure:2750: cc   -O0 -L/usr/local/apache2/modules -l:mod_debreach.so conftest.c  >&5
 configure:2754: $? = 0
 configure:2802: result: yes
 configure:2805: checking for C compiler default output file name
 configure:2807: result: a.out
 configure:2813: checking for suffix of executables
-configure:2820: cc -o conftest   -L/usr/local/apache2/modules -l:mod_debreach.so conftest.c  >&5
+configure:2820: cc -o conftest   -O0 -L/usr/local/apache2/modules -l:mod_debreach.so conftest.c  >&5
 configure:2824: $? = 0
 configure:2846: result: 
 configure:2868: checking whether we are cross compiling
-configure:2876: cc -o conftest   -L/usr/local/apache2/modules -l:mod_debreach.so conftest.c  >&5
+configure:2876: cc -o conftest   -O0 -L/usr/local/apache2/modules -l:mod_debreach.so conftest.c  >&5
 configure:2880: $? = 0
 configure:2887: ./conftest
 configure:2891: $? = 0
@@ -155,7 +155,7 @@ configure:3461: result: yes
 configure:3475: checking for system library directory
 configure:3490: result: lib
 configure:3497: checking if compiler supports -R
-configure:3516: cc -o conftest -g -O2  -L/usr/local/apache2/modules -l:mod_debreach.so conftest.c -R /usr/lib  >&5
+configure:3516: cc -o conftest -g -O2  -O0 -L/usr/local/apache2/modules -l:mod_debreach.so conftest.c -R /usr/lib  >&5
 cc: error: unrecognized command line option '-R'
 configure:3516: $? = 1
 configure: failed program was:
@@ -177,7 +177,7 @@ configure: failed program was:
 | }
 configure:3526: result: no
 configure:3531: checking if compiler supports -Wl,-rpath,
-configure:3550: cc -o conftest -g -O2  -L/usr/local/apache2/modules -l:mod_debreach.so conftest.c -Wl,-rpath,/usr/lib  >&5
+configure:3550: cc -o conftest -g -O2  -O0 -L/usr/local/apache2/modules -l:mod_debreach.so conftest.c -Wl,-rpath,/usr/lib  >&5
 configure:3550: $? = 0
 configure:3560: result: yes
 configure:3605: checking build system type
@@ -203,7 +203,7 @@ ac_cv_env_CPPFLAGS_value=
 ac_cv_env_CPP_set=
 ac_cv_env_CPP_value=
 ac_cv_env_LDFLAGS_set=set
-ac_cv_env_LDFLAGS_value='-L/usr/local/apache2/modules -l:mod_debreach.so'
+ac_cv_env_LDFLAGS_value='-O0 -L/usr/local/apache2/modules -l:mod_debreach.so'
 ac_cv_env_LIBS_set=
 ac_cv_env_LIBS_value=
 ac_cv_env_build_alias_set=
@@ -247,7 +247,7 @@ ECHO_T=''
 EGREP='/bin/grep -E'
 EXEEXT=''
 GREP='/bin/grep'
-LDFLAGS='-L/usr/local/apache2/modules -l:mod_debreach.so'
+LDFLAGS='-O0 -L/usr/local/apache2/modules -l:mod_debreach.so'
 LIBOBJS=''
 LIBS=''
 LIBTOOL=''

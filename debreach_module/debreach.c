@@ -8,6 +8,7 @@
 #include "httpd.h"
 #include "util_filter.h"
 #include "string.h"
+#include "apr_tables.h"
 
 /* Terrible hack... but the only way for us 
  * to get server_context struct definition used by the PHP apache module */
@@ -57,30 +58,18 @@ ZEND_GET_MODULE(debreach)
 PHP_FUNCTION(taint_brs)
 {
 	php_struct *php_ctx;
-	struct ap_filter_t *filter_chain = NULL;
 	long start, end;
 	char *note_val;
+	int *brs;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "ll", &start, &end) == FAILURE) {
 		return;
 	}
 
 	php_ctx = SG(server_context);
+	
+	request_rec *r = php_ctx->r;
+	mod_debreach_taint_brs(r, start, end);
 
-	// find the debreach filter for this request
-	filter_chain = php_ctx->r->output_filters;
-	while (filter_chain != NULL) {
-		if (strstr(filter_chain->frec->name, debreachFilterName) != NULL)
-			break;
-		filter_chain = filter_chain->next;
-	}
-
-	if (filter_chain == NULL)
-		RETURN_STRING("Could not find "debreachFilterName" in filter chain");
-
-	// we have the debreach filter in *filter_chain
-	mod_debreach_taint_brs(filter_chain, start, end);
-
-	RETURN_STRING(filter_chain->frec->name);
-    //RETURN_TRUE;
+    RETURN_TRUE;
 }

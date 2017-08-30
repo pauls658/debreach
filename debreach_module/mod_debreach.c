@@ -35,6 +35,7 @@
 
 #include "mod_debreach.h"
 
+
 #define BRS_DEBUG 1
 #if defined(VDEBUG) || defined(BRS_DEBUG)
 #include <stdio.h>
@@ -632,32 +633,22 @@ int buffer_br(ap_filter_t *f, int start, int end) {
 	return 0;
 }
 
-int mod_debreach_taint_brs(ap_filter_t *f, int start, int end) {
-	debreach_ctx *ctx = f->ctx;
-	request_rec *r = f->r;
+int mod_debreach_taint_brs(request_rec *r, int start, int end) {
+	int *cur_brs_len = (int*) apr_table_get(r->notes, DEBREACH_LEN_KEY);
+	int *cur_brs_cap = (int*) apr_table_get(r->notes, DEBREACH_CAP_KEY);
+	int *cur_brs;
+	if (cur_brs_len == 0) {
+		// this is our first br, nothing is initialized
 
-	if (!ctx) {
-		// haven't initialized the internal deflate state yet.
-		// initialize the filter state now so we can store these
-		// byte ranges, and also store a flag indicating the that
-		// the rest of the filter state has not been initialized yet
-        ctx = f->ctx = apr_pcalloc(r->pool, sizeof(*ctx));
-		ctx->initd = 0;
-		ctx->brs_buf = apr_pcalloc(r->pool, 10*sizeof(*ctx->brs_buf));
-		ctx->brs_buf_len = 0;
-		ctx->brs_buf_cap = 10;
 	}
-
-	if (ctx->initd) {
-	    int brs[2];
-	    brs[0] = start;
-	    brs[1] = end;
-	    apache_log_int_arr(f->r, brs, 2);
-	    align_brs(f->r, &(ctx->stream), brs, 2);
-		//return taint_brs(&(ctx->stream), brs, 4);
+	if (cur_brs_len != NULL) {
+		// need to append
+		cur_brs = (int*) apr_table_get(r->notes, DEBREACH_ARR_KEY);
 	} else {
-		//return buffer_br(f, start, end);
+		if 
+		cur_brs = (int*) apr_pcalloc(r->pool, sizeof(int)*2);
 	}
+	apache_log_int_arr(r, cur_brs, *cur_brs_len);
 	return 0;
 }
 
@@ -1164,7 +1155,7 @@ static apr_status_t debreach_out_filter(ap_filter_t *f,
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(01386)
         	"Debreach called");
 #endif
-//		int *brs = (int *) apr_table_get(r->notes, DEBREACH_ARR_KEY);
+		int *brs = (int *) apr_table_get(r->notes, DEBREACH_ARR_KEY);
 //		if (brs != NULL) {
 //			int *brs_len = (int*)apr_table_get(r->notes, DEBREACH_LEN_KEY);
 //#ifdef BRS_DEBUG
