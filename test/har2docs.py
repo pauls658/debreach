@@ -72,14 +72,23 @@ def har2docs(options, in_file, output_dir, site_name):
                 fd.write(content["text"])
 
 if __name__ == "__main__":
-    parser = OptionParser()
+    usage = """
+This script parses a .har file and outputs each HTTP body it finds to a file.
+
+Usage: python har2docs.py [options] <har-file> <output-dir> <site-name>
+
+    <har-file> is .har file to parse
+    <output-dir> is the directory to put parsed HTTP bodies in
+    <site-name> is a prefix that will be preprended to each filename if the --stream option is used.
+                this can be anything if --stream is not used.
+    """
+    parser = OptionParser(usage=usage)
     parser.add_option("-c", "--compressed-only",
                         action="store_true", dest="comp_only", default=False,
-                        help="Only get files that were compressed.")
+                        help="Only get HTTP bodies that were compressed.")
     parser.add_option("-a", "--compressible-types",
                         action="store_true", dest="comp_types", default=False,
-                        help="Get files that are compressible type in addition to files that were compressed.")
-
+                        help="Get HTTP bodies that are compressible type in addition to bodies that were compressed.")
     parser.add_option("-s", "--stream",
                         action="store_true", dest="stream", default=False,
                         help="Don't make directories for the different content types. Used to make the test stream.")

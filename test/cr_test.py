@@ -210,10 +210,10 @@ def do_debreach_brs(options, test_files):
     global INC
     clear_dirs()
 
-    taint_prop = 0.1
+    taint_prop = 0.0
     
     crs = {}
-    while taint_prop <= 1.0:
+    while taint_prop <= 0.0:
         print taint_prop
         for in_file in test_files:
             print in_file
