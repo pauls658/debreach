@@ -50,12 +50,16 @@
 /* @(#) $Id$ */
 
 #include "deflate.h"
+#include <limits.h>
+
 #include <stdio.h>
 
 #define VDEBUG 1
 #if defined(BDEBUG) || defined(DEBUG_WINDOW) || defined(VDEBUG)
 #include <stdio.h>
 #endif
+
+#include <assert.h>
 
 const char deflate_copyright[] =
    " deflate 1.2.8 Copyright 1995-2013 Jean-loup Gailly and Mark Adler ";
@@ -94,7 +98,7 @@ local void lm_init        OF((deflate_state *s));
 local void putShortMSB    OF((deflate_state *s, uInt b));
 local void flush_pending  OF((z_streamp strm));
 local int read_buf        OF((z_streamp strm, Bytef *buf, unsigned size));
-local int dbr_read_buf        OF((z_streamp strm, Bytef *buf, unsigned size));
+local int dbr_read_buf        OF((deflate_state *s, unsigned size));
 #ifdef ASMV
       void match_init OF((void)); /* asm code initialization */
       uInt longest_match  OF((deflate_state *s, IPos cur_match));
@@ -324,6 +328,15 @@ int ZEXPORT debreachInit2_(strm, level, method, windowBits, memLevel, strategy,
 	s->tainted_brs[0] = 0;
 	s->tainted_brs[1] = 0;
 	s->cur_taint = s->tainted_brs;
+	s->taint_end = s->tainted_brs;
+
+	// marker-related stuff
+	s->token = "BPBPBPB";
+	s->token_len = 8;
+	s->openm = '{';
+	s->closem = '}';
+	s->marker_stack = 0;
+	s->taint_start = 0;
 #endif
 
     if (s->window == Z_NULL || s->prev == Z_NULL || s->head == Z_NULL ||
@@ -1413,11 +1426,45 @@ int ZEXPORT deflateCopy (dest, source)
 #endif /* MAXSEG_64K */
 }
 
-local int dbr_read_buf(strm, buf, size)
-    z_streamp strm;
-    Bytef *buf;
-    unsigned size; // how much are the asking for, buf is at least this big
+int open_br(s, start) 
+	deflate_state *s;
+	Bytef *start;
+{
+	int start_i = start - s->window;
+	int cur_size = s->taint_end - s->tainted_brs + 2;
+	if (cur_size + 2 >s->taint_cap) {
+		int taint_end_i = cur_size - 2;
+		int cur_taint_i = s->cur_taint - s->tainted_brs;
+		s->taint_cap *= 2;
+		s->tainted_brs = (int *) realloc(s->tainted_brs, s->taint_cap*sizeof(int));
+		s->taint_end = s->tainted_brs + taint_end_i;
+		s->cur_taint = s->tainted_brs + cur_taint_i;
+	}
+	s->taint_end[0] = start_i;
+	s->taint_end[1] = INT_MAX;
+	s->taint_end += 2;
+	s->taint_end[0] = 0;
+	s->taint_end[1] = 0;
+	return 0;
+}
+
+int close_br(s, close)
+	deflate_state *s;
+	Bytef* close;
+{
+	int close_i = close - s->window;
+	// we allocate memory for the closing byte val in open_br(). no need 
+	// to check
+	s->taint_end[-1] = close_i;
+	return 0;
+}
+
+local int dbr_read_buf(s, size)
+    deflate_state *s;
+    unsigned size; // how much are they asking for. buf is at least this big
 {	
+	z_streamp strm = s->strm;
+	Bytef *buf = s->window + s->strstart + s->lookahead;
 	Bytef *in = strm->next_in;
 	uInt in_len = strm->avail_in;
 	Bytef *in_end = in + in_len;
@@ -1431,14 +1478,15 @@ local int dbr_read_buf(strm, buf, size)
 	in[in_len - 1] = '\0';
 
 	Bytef *match;
-	char *tok = "BPBPBPB"; // TODO: not hardcode
-	unsigned tok_len = 8;
+	char *tok = s->token; 
+	unsigned tok_len = s->token_len;
 	match = strstr(in, tok);
 	if (match == NULL) {
 		in[in_len - 1] = end; // no different than normal
 		return read_buf(strm, buf, size);
 	}
 
+	Bytef tok_term;
 	unsigned read = 0, copy_len;
 	Bytef *cpy_dst = buf;
  	// where last match ended + 1, also where to begin searching
@@ -1454,6 +1502,23 @@ local int dbr_read_buf(strm, buf, size)
 		if (size == 0) break;
 
 		prev_match_end = match + tok_len;
+
+		tok_term = prev_match_end == in_end ? 
+			end : match[tok_len - 1];
+		if (tok_term == s->openm) {
+			if (s->marker_stack == 0) {
+				open_br(s, cpy_dst);
+			}
+			s->marker_stack++;
+		} else {
+			assert(tok_term == s->closem); //invalid marker term
+			s->marker_stack--;
+			assert(s->marker_stack >= 0); //marker_stack is negative
+			if (s->marker_stack == 0) {
+				close_br(s, match - 1);
+			}
+		}
+
 		if (prev_match_end >= in_end) break;
 		cpy_dst += copy_len;
 		match = strstr(prev_match_end, tok);
@@ -1946,8 +2011,8 @@ int ZEXPORT taint_brs(strm, brs, len)
 	deflate_state *state = strm->state;
 	int *temp = state->tainted_brs;
 	unsigned int cur_size = 0;
-	// TODO: can't always assumed tainted_brs is initialized yet
-	// cuz we want to optimize it
+
+	// find end of taint arr, and calc current size
 	while(!(temp[0] == 0 &&	temp[1] == 0)) {
 		cur_size += 2;
 		temp += 2;
@@ -2142,7 +2207,7 @@ local void fill_window(s)
          */
         Assert(more >= 2, "more < 2");
 
-        n = dbr_read_buf(s->strm, s->window + s->strstart + s->lookahead, more);
+        n = dbr_read_buf(s, more);
         s->lookahead += n;
 
 
