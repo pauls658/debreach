@@ -50,6 +50,7 @@
 /* @(#) $Id$ */
 
 #include "deflate.h"
+#include <stdio.h>
 
 #define VDEBUG 1
 #if defined(BDEBUG) || defined(DEBUG_WINDOW) || defined(VDEBUG)
@@ -93,6 +94,7 @@ local void lm_init        OF((deflate_state *s));
 local void putShortMSB    OF((deflate_state *s, uInt b));
 local void flush_pending  OF((z_streamp strm));
 local int read_buf        OF((z_streamp strm, Bytef *buf, unsigned size));
+local int dbr_read_buf        OF((z_streamp strm, Bytef *buf, unsigned size));
 #ifdef ASMV
       void match_init OF((void)); /* asm code initialization */
       uInt longest_match  OF((deflate_state *s, IPos cur_match));
@@ -1411,6 +1413,81 @@ int ZEXPORT deflateCopy (dest, source)
 #endif /* MAXSEG_64K */
 }
 
+local int dbr_read_buf(strm, buf, size)
+    z_streamp strm;
+    Bytef *buf;
+    unsigned size; // how much are the asking for, buf is at least this big
+{	
+	Bytef *in = strm->next_in;
+	uInt in_len = strm->avail_in;
+	Bytef *in_end = in + in_len;
+	if (in_len == 0 || size == 0) return 0;
+	// So we can use strstr function.
+	// This won't affect token finding ability because the
+	// last char of the full token is not part of *tok
+	// IMPORTANT: this also serves as a bounds check because
+	// we stop copying when strstr returns NULL.
+	Bytef end = in[in_len - 1];
+	in[in_len - 1] = '\0';
+
+	Bytef *match;
+	char *tok = "BPBPBPB"; // TODO: not hardcode
+	unsigned tok_len = 8;
+	match = strstr(in, tok);
+	if (match == NULL) {
+		in[in_len - 1] = end; // no different than normal
+		return read_buf(strm, buf, size);
+	}
+
+	unsigned read = 0, copy_len;
+	Bytef *cpy_dst = buf;
+ 	// where last match ended + 1, also where to begin searching
+	Bytef *prev_match_end = in;
+	while (match != NULL) {
+		copy_len = match - prev_match_end;
+		if (copy_len > size)
+			copy_len = size;
+
+		size -= copy_len; read += copy_len;
+		zmemcpy(cpy_dst, prev_match_end, copy_len); 
+
+		if (size == 0) break;
+
+		prev_match_end = match + tok_len;
+		if (prev_match_end >= in_end) break;
+		cpy_dst += copy_len;
+		match = strstr(prev_match_end, tok);
+	}
+
+	in[in_len - 1] = end; // no different than normal
+	if (size != 0 || prev_match_end < in_end) {
+    	copy_len = in_end - prev_match_end;
+    	if (copy_len > size)
+    		copy_len = size;
+    	
+    	read += copy_len;
+    	zmemcpy(cpy_dst, prev_match_end, copy_len); 
+	}
+
+    if (strm->state->wrap == 1) {
+        strm->adler = adler32(strm->adler, buf, read);
+    }
+#ifdef GZIP
+    else if (strm->state->wrap == 2) {
+        strm->adler = crc32(strm->adler, buf, read);
+    }
+#endif
+	strm->avail_in -= ((prev_match_end - strm->next_in) + copy_len);
+    strm->next_in = prev_match_end + copy_len;
+	// total_in will be written to the adler/crc32 header
+	// as the number of bytes to expect when decompressed.
+	// this is why we don't include the string markers in
+	// this count.
+    strm->total_in += read; 
+
+	return (int)read;
+}
+
 /* ===========================================================================
  * Read a new buffer from the current input stream, update the adler32
  * and total number of bytes read.  All deflate() input goes through
@@ -2065,7 +2142,7 @@ local void fill_window(s)
          */
         Assert(more >= 2, "more < 2");
 
-        n = read_buf(s->strm, s->window + s->strstart + s->lookahead, more);
+        n = dbr_read_buf(s->strm, s->window + s->strstart + s->lookahead, more);
         s->lookahead += n;
 
 
