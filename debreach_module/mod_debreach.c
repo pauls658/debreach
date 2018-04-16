@@ -633,6 +633,7 @@ int buffer_br(ap_filter_t *f, int start, int end) {
 	return 0;
 }
 
+/*
 int mod_debreach_taint_brs(request_rec *r, int start, int end) {
 	int *cur_brs_len = (int*) apr_table_get(r->notes, DEBREACH_LEN_KEY);
 	int *cur_brs_cap = (int*) apr_table_get(r->notes, DEBREACH_CAP_KEY);
@@ -650,7 +651,7 @@ int mod_debreach_taint_brs(request_rec *r, int start, int end) {
 	}
 	apache_log_int_arr(r, cur_brs, *cur_brs_len);
 	return 0;
-}
+}*/
 
 #ifdef VDEBUG
 void write_buf_chunks(FILE *fd, char *buf, int *brs, int total_in, int buf_len) {
