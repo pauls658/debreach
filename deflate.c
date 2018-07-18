@@ -1465,39 +1465,44 @@ local int dbr_read_buf(s, size)
 {	
 	z_streamp strm = s->strm;
 	Bytef *buf = s->window + s->strstart + s->lookahead;
-	Bytef *in = strm->next_in;
-	uInt in_len = strm->avail_in;
-	Bytef *in_end = in + in_len;
+	Bytef *in = strm->next_in; // input buffer
+	uInt in_len = strm->avail_in; // How much input we have
+	Bytef *in_end = in + in_len; // Pointer to the end of input buffer
 	if (in_len == 0 || size == 0) return 0;
+
 	// So we can use strstr function.
 	// This won't affect token finding ability because the
 	// last char of the full token is not part of *tok
 	// IMPORTANT: this also serves as a bounds check because
 	// we stop copying when strstr returns NULL.
-	Bytef end = in[in_len - 1];
-	in[in_len - 1] = '\0';
+	Bytef end = in[in_len - 1]; // save the last byte of input buffer
+	in[in_len - 1] = '\0'; // null terminate the input buffer
 
 	Bytef *match;
 	char *tok = s->token; 
 	unsigned tok_len = s->token_len;
 	match = strstr(in, tok);
-	if (match == NULL) {
-		in[in_len - 1] = end; // no different than normal
+	if (match == NULL) {// no different than normal
+		in[in_len - 1] = end; 
 		return read_buf(strm, buf, size);
 	}
 
 	Bytef tok_term;
 	unsigned read = 0, copy_len;
-	Bytef *cpy_dst = buf;
+	Bytef *cpy_dst = buf; // where to copy the next byte to
+
  	// where last match ended + 1, also where to begin searching
 	Bytef *prev_match_end = in;
 	while (match != NULL) {
+		// match, prev_match_end points in the input buffer
+		// cpy_dst points in the sliding window
 		copy_len = match - prev_match_end;
 		if (copy_len > size)
 			copy_len = size;
 
 		size -= copy_len; read += copy_len;
 		zmemcpy(cpy_dst, prev_match_end, copy_len); 
+		cpy_dst += copy_len;
 
 		if (size == 0) break;
 
@@ -1505,8 +1510,10 @@ local int dbr_read_buf(s, size)
 
 		tok_term = prev_match_end == in_end ? 
 			end : match[tok_len - 1];
+		// We just copied a portion of the buffer up to some marker
 		if (tok_term == s->openm) {
 			if (s->marker_stack == 0) {
+				// it was an opening marker and we don't already have an unclosed open marker. The copied portion is untainted and everything after is tainted.
 				open_br(s, cpy_dst);
 			}
 			s->marker_stack++;
@@ -1515,12 +1522,12 @@ local int dbr_read_buf(s, size)
 			s->marker_stack--;
 			assert(s->marker_stack >= 0); //marker_stack is negative
 			if (s->marker_stack == 0) {
-				close_br(s, match - 1);
+				// We are closing the final opening marker. The copied portion is tainted, and everything after is untainted
+				close_br(s, cpy_dst - 1);
 			}
 		}
 
 		if (prev_match_end >= in_end) break;
-		cpy_dst += copy_len;
 		match = strstr(prev_match_end, tok);
 	}
 
