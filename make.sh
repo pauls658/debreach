@@ -2,7 +2,7 @@
 
 if [[ -z $1 ]]; then
 	echo "wtf give arg"
-	echo "[lib | validation]"
+	echo "[lib | validation | debug]"
 	exit 1
 fi
 

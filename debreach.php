@@ -4,6 +4,23 @@ if ($DEBREACH_DEBUG) {
 	ini_set('display_errors', 1); error_reporting(E_ALL);
 }
 
+function debreach_taint($str) {
+	if (in_array("mod_deflate", apache_get_modules())) {
+		return $str;
+	} else {
+		if ($str) { //make sure string is not empty/null
+			return "BPBPBPB{" . $str . "BPBPBPB}";
+		} else {
+			return $str;
+		}
+	}
+}
+
+$GLOBALS['DBRT'] = "debreach_taint";
+
+ob_start(null, 100000);
+
+/*
 // request state variables
 if (!isset($__DEBREACH_BUF_TAINTED)) {
 	$__DEBREACH_BUF_TAINTED = False; // Is the data in __debreach_filter() tainted
@@ -66,4 +83,5 @@ function __debreach_filter($data) {
 }
 // set chunk_size = 1 so buffer flushes on each echo call
 ob_start('__debreach_filter', 1);
+ */
 ?>

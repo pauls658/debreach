@@ -131,7 +131,18 @@ typedef struct internal_state {
 	 */
 	int *tainted_brs;
 	int *cur_taint;
-	int taint_cap;
+	int *taint_end; // pointer to first null in double null term
+	int taint_cap; // actual size of tainted_brs (_includes_ double null term)
+
+	// The token _without_ the terminating open/close char
+	char *token;
+	// The token length _including_ the terminating open/close char
+	int token_len; 
+	char openm;
+	char closem;
+
+	int marker_stack; // 0 => nothing is tainted yet
+	int taint_start; // the start of tainted data. only valid if marker_stack > 0.
 #endif
 
     ulg window_size;

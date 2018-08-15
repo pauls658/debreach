@@ -249,7 +249,7 @@ int gzwrite(gz, buf, len)
     do {
         strm->next_out = out;
         strm->avail_out = BUFLEN;
-        (void)deflate(strm, Z_NO_FLUSH);
+        (void)debreach(strm, Z_NO_FLUSH);
         fwrite(out, 1, BUFLEN - strm->avail_out, gz->file);
     } while (strm->avail_out == 0);
     return len;
@@ -309,7 +309,7 @@ int gzclose(gz)
         do {
             strm->next_out = out;
             strm->avail_out = BUFLEN;
-            (void)deflate(strm, Z_FINISH);
+            (void)debreach(strm, Z_FINISH);
             fwrite(out, 1, BUFLEN - strm->avail_out, gz->file);
         } while (strm->avail_out == 0);
         debreachEnd(strm);
