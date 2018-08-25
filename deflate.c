@@ -1459,6 +1459,13 @@ int close_br(s, close)
 	return 0;
 }
 
+int ends_with(char const * str, char const * suffix, uInt lenstr, uInt lensuf)
+{
+    if (lensuf >  lenstr)
+		return 0;	
+    return strncmp(str + lenstr - lensuf, suffix, lensuf) == 0;
+}
+
 local int dbr_read_buf(s, size)
     deflate_state *s;
     unsigned size; // how much are they asking for. buf is at least this big
@@ -1497,14 +1504,16 @@ local int dbr_read_buf(s, size)
 		// match, prev_match_end points in the input buffer
 		// cpy_dst points in the sliding window
 		copy_len = match - prev_match_end;
-		if (copy_len > size)
-			copy_len = size;
+		if (copy_len > size) // At this point, you might think: is it possible that we will
+			copy_len = size; // break a match in half in the following memcpy? The answer is
+							 // no, because we would have matched it instead
 
 		size -= copy_len; read += copy_len;
 		zmemcpy(cpy_dst, prev_match_end, copy_len); 
 		cpy_dst += copy_len;
 
-		if (size == 0) break;
+		if (size == 0) 
+			break;
 
 		prev_match_end = match + tok_len;
 
@@ -1520,14 +1529,15 @@ local int dbr_read_buf(s, size)
 		} else {
 			assert(tok_term == s->closem); //invalid marker term
 			s->marker_stack--;
-			assert(s->marker_stack >= 0); //marker_stack is negative
+			assert(s->marker_stack >= 0);
 			if (s->marker_stack == 0) {
 				// We are closing the final opening marker. The copied portion is tainted, and everything after is untainted
 				close_br(s, cpy_dst - 1);
 			}
 		}
 
-		if (prev_match_end >= in_end) break;
+		if (prev_match_end >= in_end) 
+			break;
 		match = strstr(prev_match_end, tok);
 	}
 
@@ -1536,7 +1546,16 @@ local int dbr_read_buf(s, size)
     	copy_len = in_end - prev_match_end;
     	if (copy_len > size)
     		copy_len = size;
-    	
+
+//	 	if (ends_with(prev_match_end, "BPBPBPB", copy_len, 7)) copy_len -= 7;
+//		else if (ends_with(prev_match_end, "BPBPBP", copy_len, 6)) copy_len -= 6;
+//		else if (ends_with(prev_match_end, "BPBPB", copy_len, 5)) copy_len -= 5;
+//		else if (ends_with(prev_match_end, "BPBP", copy_len, 4)) copy_len -= 4;
+//		else if (ends_with(prev_match_end, "BPB", copy_len, 3)) copy_len -= 3;
+//		else if (ends_with(prev_match_end, "BP", copy_len, 2)) copy_len -= 2;
+//		else if (ends_with(prev_match_end, "B", copy_len, 1)) copy_len -= 1;
+
+   	
     	read += copy_len;
     	zmemcpy(cpy_dst, prev_match_end, copy_len); 
 	}
@@ -1576,6 +1595,15 @@ local int read_buf(strm, buf, size)
 
     if (len > size) len = size;
     if (len == 0) return 0;
+
+//	if (ends_with(strm->next_in, "BPBPBPB", len, 7)) len -= 7;
+//	else if (ends_with(strm->next_in, "BPBPBP", len, 6)) len -= 6;
+//	else if (ends_with(strm->next_in, "BPBPB", len, 5)) len -= 5;
+//	else if (ends_with(strm->next_in, "BPBP", len, 4)) len -= 4;
+//	else if (ends_with(strm->next_in, "BPB", len, 3)) len -= 3;
+//	else if (ends_with(strm->next_in, "BP", len, 2)) len -= 2;
+//	else if (ends_with(strm->next_in, "B", len, 1)) len -= 1;
+
 
     strm->avail_in  -= len;
 
