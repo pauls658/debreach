@@ -2057,6 +2057,7 @@ int ZEXPORT taint_brs(strm, brs, len)
 	size_t new_size = 0;
 	if (needed > state->taint_cap) {
 		unsigned int cur_taint_i = state->cur_taint - state->tainted_brs;
+		unsigned int taint_end_i = state->taint_end - state->tainted_brs;
 		while (state->taint_cap < needed) {
 			state->taint_cap *= 2;
 		}
@@ -2069,6 +2070,7 @@ int ZEXPORT taint_brs(strm, brs, len)
 		}
 		// TODO: better alloc error handling
 		state->cur_taint = state->tainted_brs + cur_taint_i;
+		state->taint_end = state->tainted_brs + taint_end_i;
 	}
 
 	// convert the given byte ranges to future window indexes
