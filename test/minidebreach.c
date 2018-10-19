@@ -649,6 +649,46 @@ int charCount(str, c)
    return ct;
 }
 
+char* read_br_file() {
+	/* declare a file pointer */
+	FILE    *infile;
+	char    *buffer;
+	long    numbytes;
+
+	/* open an existing file for reading */
+	infile = fopen("brs", "r");
+
+	/* quit if the file does not exist */
+	if(infile == NULL)
+		return 1;
+
+	/* Get the number of bytes */
+	fseek(infile, 0L, SEEK_END);
+	numbytes = ftell(infile);
+
+	/* reset the file position indicator to 
+	   the beginning of the file */
+	fseek(infile, 0L, SEEK_SET);	
+
+	/* grab sufficient memory for the 
+	   buffer to hold the text */
+	buffer = (char*)calloc(numbytes + 1, sizeof(char));	
+
+	/* memory error */
+	if(buffer == NULL)
+		return 1;
+
+	/* copy all the text into the buffer */
+	fread(buffer, sizeof(char), numbytes, infile);
+	buffer[numbytes] = '\0';
+	fclose(infile);
+
+	/* confirm we have read the file by
+	   outputing it to the console */
+	//printf("The file called test.dat contains this text\n\n%s", buffer);
+	return buffer;
+}
+
 /* ===========================================================================
  * Usage:  minigzip [-c] [-d] [-f] [-h] [-r] [-1 to -9] [files...]
  *   -c : write to standard output
@@ -682,7 +722,7 @@ int main(argc, argv)
 
 	int c;
 	extern char *optarg;
-	while ((c = getopt(argc, argv, "cdfhrl:s:b:")) != -1) {
+	while ((c = getopt(argc, argv, "cdfxhrl:s:b:")) != -1) {
 #ifdef ARGS_DEBUG
 		printf("Read arg: -%c\n", c);
 #endif
@@ -747,8 +787,11 @@ int main(argc, argv)
 				optarg = comma + 1;
 			}
 			*temp = NULL;
-		} else if (c == 'b') {
+		} else if (c == 'b' || c == 'x') {
 			// get the number of usnigned ints we need to allocate
+			if (c == 'x') {
+				optarg = read_br_file();
+			}
 			int n = charCount(optarg, ',') + 1;
 			if (n % 2 != 0) {
 				printf("Invalid argument for -b: odd number of byte values supplied.\n");
