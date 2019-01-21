@@ -5,20 +5,56 @@ if ($DEBREACH_DEBUG) {
 }
 
 function debreach_taint($str) {
-	if (in_array("mod_deflate", apache_get_modules())) {
-		return $str;
-	} else {
+	//if (in_array("mod_deflate", apache_get_modules())) {
+	//	return $str;
+	//} else {
 		if ($str) { //make sure string is not empty/null
 			return "BPBPBPB{" . $str . "BPBPBPB}";
 		} else {
 			return $str;
 		}
+	//}
+}
+
+function debreach_remove_markers($buf) {
+	$marker = "BPBPBPB";
+	$outbuf = "";
+	$stack = 0;
+	$last = 0;
+	$brs = [];
+
+	while (true) {
+		$match_loc = strpos($buf, $marker, $last); // 8 is length of $marker
+		if ($match_loc === FALSE)
+			break;
+
+		$outbuf .= substr($buf, $last, $match_loc - $last);
+		$last = $match_loc + 8;
+
+		if ($buf[$match_loc + 7] == "{") {
+			if ($stack == 0)
+				$brs[] = strlen($outbuf);
+			$stack += 1;
+		} else {
+			$stack -= 1;
+			if ($stack == 0) {
+				$brs[] = strlen($outbuf) - 1;
+			} else if ($stack < 0) {
+				error_log("DEBREACH: stack was negative");
+			}
+		}
 	}
+	if ($last < strlen($buf))
+		$outbuf .= substr($buf, $last);
+	if ($stack != 0) {
+		error_log("DEBREACH: stack was not empty!");
+	}
+	return $outbuf;
 }
 
 $GLOBALS['DBRT'] = "debreach_taint";
 
-ob_start(null, 100000);
+ob_start("debreach_remove_markers");
 
 /*
 // request state variables
